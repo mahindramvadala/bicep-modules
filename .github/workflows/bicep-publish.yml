@@ -35,10 +35,6 @@ on:
         type: string
         description: Path for the bicep module within the container registry from which it can be consumed
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   publish-bicep-module:
     # Job only runs when changes are pushed to main branch.
