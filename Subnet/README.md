@@ -18,14 +18,16 @@ Not published to private regsitry
 
 | Name | Type | Required | Description |
 | :--- | :--- | :------- | :---------- |
-| `subnets` | `array` | Yes | List of subnets to be created. |
+| `subnets` | `VirtualNetworkSubnet[]` | Yes | List of subnets to be created. |
 | `vnetName` | `string` | Yes | Name of the VNET where the subnets need to be created. |
 
 ## Outputs
 
 | Name | Type | Description |
 | :---- | :--- | :---------- |
-| `id` | `array` | List of Resource Id of the subnets to be created. |
+| `id` | `string[]` | List of Resource Id of the subnets to be created. |
+| `name` | `string[]` | List of the names of the subnets to be created. |
+| `rg` | `string` | RG where the subnet(s) is created. |
 
 ## Examples
 
