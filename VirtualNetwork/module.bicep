@@ -1,9 +1,16 @@
 targetScope = 'resourceGroup'
 
-import { Subnets, VirtualNetworks } from '../types.bicep'
+import { VirtualNetworkSubnet, Lock, nameBuilder } from '../utilities.bicep'
+
+@description('Optional. Specify whether the location alias should be added to the resource naming convention. Defaults to false.')
+param addLocationAliasToName false | true = false
 
 @description('Address space of the VNET resource.')
 param cidr string
+
+import { diagnosticSettingFullType } from 'br/public:avm/utl/types/avm-common-types:0.7.0'
+@description('Optional. Enable diagnostic settings')
+param diagnosticSettings diagnosticSettingFullType[]?
 
 @description('Optional. Ddos Protection Plan details. To associate a ddos protection plan to the virtual network. This is only valid if the enableDddosProtectionPlan is set to true.')
 param ddosProtectionPlan {
@@ -17,39 +24,34 @@ param ddosProtectionPlan {
   subscriptionId: resourceInput<'Microsoft.Subscription/subscriptionDefinitions@2017-11-01-preview'>.properties.subscriptionId?
 }?
 
+@description('Optional. Custom DNS servers to be used by the VNET. Defaults to Azure provided DNS.')
+param dnsServers string[]?
+
 @description('Optional. If true, ddos protection plan needs to be associated. To attach a plan to VNET, ddosProtectionPlan should not be empty.')
 param enableDdosProtectionPlan bool = false
 
 @description('Optional. If true, encryption will be enabled. This is only for the traffic betweens the VMs of the selective SKUsnthat are deployed within the VNet. Defaults to false.')
 param enableEncryption bool = false
 
-@allowed([
-  false
-  true
-])
-@description('Optional. If true, configures \'CanNotDelete\' lock on the VNET so that its protected against the accidental deletion. Defaults to false.')
-param enableLocking bool = false
+@description('Optional. Specify the lock settings for the resource.')
+param lock Lock?
 
 @description('Optional. Azure region where the VNET will be created. Defaults to location of resource group.')
 param location resourceInput<'Microsoft.Network/virtualNetworks@2024-05-01'>.location = resourceGroup().location
 
+/*
 @description('Optional. Name of the log analytics workspace that is used to store the diagnostic settings of the VNET.')
-param logAnalyticsWorkspaceName resourceInput<'Microsoft.OperationalInsights/workspaces@2023-09-01'>.name?
+param logAnalyticsWorkspaceName resourceInput<'Microsoft.OperationalInsights/workspaces@2025-07-01'>.name?
 
 @description('Optional. Name of the Resource group where the log analytics workspace was deployed. Defaults to rg where the VNET will be created.')
 param logAnalyticsWorkspaceRGName resourceInput<'Microsoft.Resources/resourceGroups@2024-11-01'>.name = resourceGroup().name
+*/
 
 @description('Name suffix of the Virtual Network resource being created. \'vnet-\' will be as the prefix.')
 param nameSuffix string
 
-@description('Optional. Name of the NAT gateway resource that needs to be associated with the subnets within the VNET resource being provisioned.')
-param natGatewayName resourceInput<'Microsoft.Network/natGateways@2024-05-01'>.name?
-
-@description('Optional. RG where the NAT Gateway resource resides. Defaults to rg where the VNET resource is being deployed.')
-param natGatewayRGName resourceInput<'Microsoft.Resources/resourceGroups@2024-11-01'>.name = resourceGroup().name
-
 @description('Optional. Subnets to be created. Defaults to [].')
-param subnets Subnets = []
+param subnets VirtualNetworkSubnet[] = []
 
 @description('Optional. Tags to be applied to the resource.')
 param tags object?
@@ -63,42 +65,26 @@ resource ddosPlan 'Microsoft.Network/ddosProtectionPlans@2023-09-01' existing = 
   )
 }
 
+/*
 // Get log analytics workspace
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = if (!empty(logAnalyticsWorkspaceName)) {
   name: logAnalyticsWorkspaceName ?? 'dummy'
   scope: resourceGroup(logAnalyticsWorkspaceRGName)
 }
+*/
 
-// Get NAT gateway resource
-resource nat 'Microsoft.Network/natGateways@2024-01-01' existing = if (!empty(natGatewayName)) {
-  name: natGatewayRGName ?? 'dummy'
-  scope: resourceGroup(natGatewayRGName)
-}
+var locationAlias = addLocationAliasToName ? location : null
 
-// Get NSG resources
-resource nsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' existing = [
-  for (each, i) in subnets: if (contains(each, 'nsgName')) {
-    name: each.?nsgName ?? 'dummy'
-    scope: resourceGroup(each.?nsgResourceGroupName ?? resourceGroup().name)
-  }
-]
-
-// Get Route Tble resource
-resource rt 'Microsoft.Network/routeTables@2024-01-01' existing = [
-  for (each, i) in subnets: if (contains(each, 'routeTableName')) {
-    name: each.?routeTableName ?? 'dummy'
-    scope: resourceGroup(each.?routeTableRGName ?? resourceGroup().name)
-  }
-]
-
+//@onlyIfNotExists()
 // create vnet
-resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
-  name: !startsWith(toLower(nameSuffix), 'vnet-')
-    ? toLower('vnet-${nameSuffix}')
-    : fail('Parameter nameSuffix should not start with \'vnet-\'. The module will add \'vnet-\' as the prefix.')
+resource vnet 'Microsoft.Network/virtualNetworks@2025-05-01' = {
+  name: nameBuilder('virtualNetwork', nameSuffix, locationAlias)
   location: location
   tags: tags
   properties: {
+    dhcpOptions: {
+      dnsServers: dnsServers ?? []
+    }
     encryption: {
       enabled: enableEncryption
     }
@@ -118,31 +104,19 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
         name: each.?name
         properties: {
           addressPrefix: each.?addressPrefix
-          delegations: contains(each, 'delegation')
+          delegations: each.?delegation != null
             ? [
                 {
-                  name: each.?delegation.name
+                  name: each.?delegation
                   properties: {
-                    serviceName: each.?delegation.service
+                    serviceName: each.?delegation
                   }
                 }
               ]
             : []
-          natGateway: !empty(natGatewayName)
-            ? {
-                id: nat.id
-              }
-            : null
-          networkSecurityGroup: contains(each, 'nsgName')
-            ? {
-                id: nsg[i].id
-              }
-            : null
-          routeTable: contains(each, 'routeTableName')
-            ? {
-                id: rt[i].id
-              }
-            : null
+          natGateway: each.?natGateway
+          networkSecurityGroup: each.?networkSecurityGroup
+          routeTable: each.?routeTable
           privateEndpointNetworkPolicies: each.?privateEndpointNetworkPolicies
           privateLinkServiceNetworkPolicies: each.?privateLinkServiceNetworkPolicies
           serviceEndpoints: each.?serviceEndpoints
@@ -154,33 +128,38 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
 }
 
 // config diagnostic settings
-resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceName)) {
-  name: 'DiagnosticSettings'
-  scope: vnet
-  properties: {
-    workspaceId: !empty(logAnalyticsWorkspaceName) ? law.id : 'dummy'
-    logs: [
-      {
-        enabled: true
-        categoryGroup: 'allLogs'
-      }
-    ]
-    metrics: [
-      {
-        enabled: true
-        category: 'AllMetrics'
-      }
-    ]
+resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
+  for each in diagnosticSettings ?? []: {
+    name: each.?name ?? 'DiagnosticSettings'
+    scope: vnet
+    properties: {
+      logAnalyticsDestinationType: each.?logAnalyticsDestinationType
+      workspaceId: each.?workspaceResourceId
+      storageAccountId: each.?storageAccountResourceId
+      logs: [
+        for log in each.?logCategoriesAndGroups ?? [{ categoryGroup: 'allLogs' }]: {
+          enabled: log.?enabled ?? true
+          category: log.?category
+          categoryGroup: log.?categoryGroup
+        }
+      ]
+      metrics: [
+        for met in each.?metricCategories ?? [{ category: 'AllMetrics' }]: {
+          category: met.?category
+          enabled: met.?enabled ?? true
+        }
+      ]
+    }
   }
-}
+]
 
-// create delete lock
-resource lock 'Microsoft.Authorization/locks@2020-05-01' = if (enableLocking) {
-  name: 'DeleteProtect'
-  scope: vnet
+// Configure locking on the VNET resource
+@description('Optional. Enable or disbaling lock.')
+resource vnet_lock 'Microsoft.Authorization/locks@2020-05-01' = if (lock != null) {
+  name: lock.?name ?? 'BicepLock'
   properties: {
-    level: 'CanNotDelete'
-    notes: 'Cannot Delete VNET while the lock is assigned.'
+    level: lock.?level ?? 'NotSpecified'
+    notes: lock.?notes
   }
 }
 
@@ -195,9 +174,14 @@ output name string = vnet.name
 output rg string = resourceGroup().name
 
 @description('Resource ID of the subnets deployed by the module.')
-output subnets array = [
+output subnets VirtualNetworkSubnetOutputObject[] = [
   for (each, i) in subnets ?? []: {
     id: vnet.properties.subnets[i].id
     name: vnet.properties.subnets[i].name
   }
 ]
+
+type VirtualNetworkSubnetOutputObject = {
+  id: string
+  name: string
+}

@@ -15,9 +15,10 @@
     "sourceMapping": true,
     "symbolicNameCodegen": true,
     "testFramework": true,
-    "extensibility": true,
-    "secureOutputs": true,
     "waitAndRetry": true,
-    "typedVariables": true
+    "userDefinedConstraints": true
+  },
+  "extensions": {
+    "msgraph": "br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0"
   }
 }
