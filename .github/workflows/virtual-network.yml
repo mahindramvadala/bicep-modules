@@ -2,13 +2,13 @@ name: Publish Virtual Network Bicep module
 
 on:
     workflow_dispatch:
-    push:
-        branches:
-            - main
-        paths:
-            - 'VirtualNetwork/**'
-            - 'utilities.bicep'
-            - '.github/workflows/virtual-network.yml'
+    #push:
+    #    branches:
+    #        - main
+    #    paths:
+    #        - 'VirtualNetwork/**'
+    #        - 'utilities.bicep'
+    #        - '.github/workflows/virtual-network.yml'
 jobs:
     key-vault:
         permissions:

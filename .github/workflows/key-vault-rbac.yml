@@ -2,13 +2,13 @@ name: Publish Key Vault RBAC Bicep module
 
 on:
     workflow_dispatch:
-    push:
-        branches:
-            - main
-        paths:
-            - 'KeyVaultRBAC/*'
-            - 'utilities.bicep'
-            - '.github/workflows/key-vault-rbac.yml'
+    #push:
+    #    branches:
+    #        - main
+    #    paths:
+    #        - 'KeyVaultRBAC/*'
+    #        - 'utilities.bicep'
+    #       - '.github/workflows/key-vault-rbac.yml'
 jobs:
     key-vault:
         permissions:

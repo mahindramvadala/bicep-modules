@@ -2,12 +2,12 @@ name: Publish Entra ID object retrieval module
 
 on:
     workflow_dispatch:
-    push:
-        branches:
-            - main
-        paths:
-            - 'EntraIDObjectRetrieve/**'
-            - 'utilities.bicep'
+    #push:
+    #    branches:
+    #        - main
+    #    paths:
+    #        - 'EntraIDObjectRetrieve/**'
+    #        - 'utilities.bicep'
 jobs:
     key-vault:
         permissions:

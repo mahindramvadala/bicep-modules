@@ -2,12 +2,12 @@ name: Publish Utilities common types
 
 on:
     workflow_dispatch:
-    push:
-        branches:
-            - main
-        paths:
-            - utilities.bicep
-            - '.github/workflows/utils.yml'
+    #push:
+    #    branches:
+    #        - main
+    #    paths:
+    #        - utilities.bicep
+    #        - '.github/workflows/utils.yml'
 
 jobs:
     key-vault:

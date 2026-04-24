@@ -56,6 +56,14 @@ param roleAssignments RoleAssignment[]?
 @description('Optional. Virtual Network rules to be applied to the resource so that the resources within the subnet can access the resource via Public network access using Service endpoint.')
 param virtualNetworkRules ResourceFirewallRules?
 
+var defaultRoleAssignment object[] = [
+  {
+    principalName: deployer().userPrincipalName
+    principalType: 'ServicePrincipal'
+    roleName: 'Key Vault Administrator'
+  }
+]
+
 resource dns_zone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = if (privateEndpoint != null) {
   name: 'privatelink.vaultcore.azure.net'
   scope: resourceGroup()
@@ -115,20 +123,6 @@ resource kv 'Microsoft.KeyVault/vaults@2025-05-01' = {
   }
 }
 
-module bicepdeploy_clientid_kvrbac '../KeyVaultRBAC/module.bicep' = {
-  name: 'AssignKVAdmin_${kv.name}_${replace(trim(deployer().userPrincipalName), '@', '')}'
-  params: {
-    keyVaultName: kv.name
-    roleAssignments: [
-      {
-        principalName: deployer().userPrincipalName
-        principalType: 'ServicePrincipal'
-        roleName: 'Key Vault Administrator'
-      }
-    ]
-  }
-}
-
 // create private endpoint
 module pe '../PrivateEndpoint/module.bicep' = if (privateEndpoint != null) {
   name: 'DeployPrivateEndpoint_${kv.name}'
@@ -147,10 +141,10 @@ module pe '../PrivateEndpoint/module.bicep' = if (privateEndpoint != null) {
 }
 
 module kv_roleass '../KeyVaultRBAC/module.bicep' = if (!empty(roleAssignments ?? '')) {
-  name: 'CreateRoleAssignments_${kv.name}'
+  name: 'RoleAssignments_${kv.name}'
   params: {
     keyVaultName: kv.name
-    roleAssignments: roleAssignments ?? []
+    roleAssignments: union(roleAssignments ?? [], defaultRoleAssignment)
   }
 }
 

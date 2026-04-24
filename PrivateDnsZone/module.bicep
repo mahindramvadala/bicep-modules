@@ -9,11 +9,16 @@ import { VirtualNetwork } from '../utilities.bicep'
   'privatelink.azconfig.io'
   'privatelink.azurewebsites.net'
   'privatelink.azurecr.io'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.blob.core.windows.net'
   'privatelink.cosmos.azure.com'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.database.windows.net'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.file.core.windows.net'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.queue.core.windows.net'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.table.core.windows.net'
   'privatelink.servicebus.windows.net'
   'privatelink.vaultcore.azure.net'
