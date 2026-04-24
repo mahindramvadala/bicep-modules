@@ -1,4 +1,4 @@
-name: Publish Key Vault Bicep module
+name: Publish Virtual Network Bicep module
 
 on:
     workflow_dispatch:
@@ -6,11 +6,9 @@ on:
         branches:
             - main
         paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
+            - 'VirtualNetwork/**'
             - 'utilities.bicep'
+            - '.github/workflows/virtual-network.yml'
 jobs:
     key-vault:
         permissions:
@@ -19,6 +17,6 @@ jobs:
         uses: ./.github/workflows/bicep-publish.yml
         with:
             azure-client-id: 4efea1b2-111b-464b-aa2f-efa403e4c7d4
-            bicep-file-path: ./KeyVault/module.bicep
+            bicep-file-path: ./VirtualNetwork/module.bicep
             registry-name: mahicr
-            registry-path: key-vault/vault:1.0
+            registry-path: network/vnet:1.0

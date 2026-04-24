@@ -6,8 +6,8 @@ on:
         branches:
             - main
         paths:
-            - "KeyVault/**"
-            - ".github/workflows/key-vault.yml"
+            - utilities.bicep
+            - '.github/workflows/utils.yml'
 
 jobs:
     key-vault:
@@ -19,4 +19,4 @@ jobs:
             azure-client-id: 4efea1b2-111b-464b-aa2f-efa403e4c7d4
             bicep-file-path: ./KeyVault/module.bicep
             registry-name: mahicr
-            registry-path: /vault:1.0
+            registry-path: utils:1.0

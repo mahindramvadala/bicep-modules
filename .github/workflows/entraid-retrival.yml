@@ -1,4 +1,4 @@
-name: Publish Key Vault Bicep module
+name: Publish Entra ID object retrieval module
 
 on:
     workflow_dispatch:
@@ -6,10 +6,7 @@ on:
         branches:
             - main
         paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
+            - 'EntraIDObjectRetrieve/**'
             - 'utilities.bicep'
 jobs:
     key-vault:
@@ -19,6 +16,6 @@ jobs:
         uses: ./.github/workflows/bicep-publish.yml
         with:
             azure-client-id: 4efea1b2-111b-464b-aa2f-efa403e4c7d4
-            bicep-file-path: ./KeyVault/module.bicep
+            bicep-file-path: ./EntraIDObjectRetrieve/module.bicep
             registry-name: mahicr
-            registry-path: key-vault/vault:1.0
+            registry-path: entraid/retrieve-object:1.0

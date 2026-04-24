@@ -1,15 +1,11 @@
-
 metadata name = 'Key Vault Bicep module'
 
-metadata description = 'Deploys a Key Vault with Private endpoint, firewall rules and access policies depending on the user input.'
-
-extension msgraph
+metadata description = '''
+Deploys a Key Vault with RBAC as authorization, assigns KVAdmin role to the service principal that deploys the bicep file(s) by default. In addition, it supports creation of Private endpoint, key vault firewall rules and access policies if RBAC is not chosen as authorization model depending on how the user would setup the key vault using the optional parameters.
+'''
 
 // import user-defined types from types.bicep
-import { KeyVaultAccessPolicy, PrivateEndpoint, ResourceFirewallRules, nameBuilder } from '../utilities.bicep'
-
-@description('Optional. Specify whether the location alias should be added to the resource naming convention. Defaults to false.')
-param addLocationAliasToName false | true = false
+import { KeyVaultAccessPolicy, PrivateEndpoint, ResourceFirewallRules, RoleAssignment, nameBuilder } from '../utilities.bicep'
 
 @description('Optional. Access policies to be created on the key vault.')
 param accessPolicies KeyVaultAccessPolicy[]?
@@ -54,11 +50,11 @@ param tags object?
 @description('Optional. Private endpoint configuration.')
 param privateEndpoint PrivateEndpoint?
 
+@description('Optional. Azure role assignments to be applied on the key vault.')
+param roleAssignments RoleAssignment[]?
+
 @description('Optional. Virtual Network rules to be applied to the resource so that the resources within the subnet can access the resource via Public network access using Service endpoint.')
 param virtualNetworkRules ResourceFirewallRules?
-
-@description('Var to enforce location alias as a part of the resource name.')
-var locationAlias string? = addLocationAliasToName ? location : null
 
 resource dns_zone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = if (privateEndpoint != null) {
   name: 'privatelink.vaultcore.azure.net'
@@ -74,7 +70,7 @@ resource subnet 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' existing 
 
 // create key vault resource
 resource kv 'Microsoft.KeyVault/vaults@2025-05-01' = {
-  name: nameBuilder('keyVault', nameSuffix, locationAlias)
+  name: nameBuilder('keyVault', nameSuffix)
   location: location ?? resourceGroup().location
   tags: tags
   properties: {
@@ -119,6 +115,20 @@ resource kv 'Microsoft.KeyVault/vaults@2025-05-01' = {
   }
 }
 
+module bicepdeploy_clientid_kvrbac '../KeyVaultRBAC/module.bicep' = {
+  name: 'AssignKVAdmin_${kv.name}_${replace(trim(deployer().userPrincipalName), '@', '')}'
+  params: {
+    keyVaultName: kv.name
+    roleAssignments: [
+      {
+        principalName: deployer().userPrincipalName
+        principalType: 'ServicePrincipal'
+        roleName: 'Key Vault Administrator'
+      }
+    ]
+  }
+}
+
 // create private endpoint
 module pe '../PrivateEndpoint/module.bicep' = if (privateEndpoint != null) {
   name: 'DeployPrivateEndpoint_${kv.name}'
@@ -133,6 +143,14 @@ module pe '../PrivateEndpoint/module.bicep' = if (privateEndpoint != null) {
     privateDnsZoneId: dns_zone.?id!
     vnetName: privateEndpoint.?vnetName!
     vnetRGName: privateEndpoint.?vnetRGName
+  }
+}
+
+module kv_roleass '../KeyVaultRBAC/module.bicep' = if (!empty(roleAssignments ?? '')) {
+  name: 'CreateRoleAssignments_${kv.name}'
+  params: {
+    keyVaultName: kv.name
+    roleAssignments: roleAssignments ?? []
   }
 }
 
