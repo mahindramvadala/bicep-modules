@@ -9,6 +9,9 @@ on:
       azure-tenant-id:
         required: true
     inputs:
+      output-format:
+        required: true
+        type: string
       bicep-file-path:
         required: true
         type: string
@@ -45,6 +48,10 @@ jobs:
           inputPath: ${{ inputs.bicep-file-path }}
           baseline: 'Azure.All'
           modules: PSRule.Rules.Azure
+          outcome: All
+          outputFormat: ${{ inputs.output-format }}
+        env:
+          PSRULE_CONFIGURATION_AZURE_BICEP_FILE_EXPANSION: true
 
   publish-bicep-module:
     needs: scan-bicep-module
