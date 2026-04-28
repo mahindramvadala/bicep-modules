@@ -1,5 +1,5 @@
 // route table bicep module
-import { Routes } from '../types.bicep'
+import { RouteTableRoute } from '../utilities.bicep'
 
 @allowed([
   false
@@ -15,7 +15,7 @@ param location resourceInput<'Microsoft.Network/routeTables@2024-05-01'>.locatio
 param nameSuffix string
 
 @description('Routes to be added.')
-param routes Routes?
+param routes RouteTableRoute[]?
 
 @description('Optional. Tags to be applied.')
 param tags object?

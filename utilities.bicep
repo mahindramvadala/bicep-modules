@@ -1,6 +1,6 @@
 metadata name = 'Custom utilities for innersource Bicep modules'
 metadata description = '''
-  This module provides you with all the custom data types and functions that are being imported within the Bicep modules. You can also import them to your own Bicep files if you want to use the same data types and functions within your Bicep code. The main purpose of this module is to avoid code duplication and provide a single source of truth for all the custom data types and functions used within the innersource Bicep modules.
+  This module provides you with all the custom data types and functions that are being imported within the Bicep modules. You can also import them to your own Bicep files. The main purpose of this module is to avoid code duplication and provide a single source of truth for all the custom data types and functions used within the innersource Bicep modules.
 '''
 
 // =========================  //
@@ -349,54 +349,117 @@ type KeyVaultAccessPolicy = {
   }
 }
 
-// =================================== //
-// Key Vault RBAC Role Assignment      //
-// =================================== //
-
-@sealed()
-type KeyVaultRoleAssignment = {
-  @description('Optional. The conditions on the role assignment. This limits the resources it can be assigned to. e.g.: @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase "foo_storage_container".')
-  condition: string?
-  @description('Optional. Version of the condition.')
-  conditionVersion: '2.0'?
-  @description('Optional. Description of the role assignment.')
-  description: string?
-  @description('Optional. Name (as GUID) of the role assignment. A guild will be generated if not explicitly provided.')
-  name: string?
-  @description('Name of the Role to be assigned for the user/group or servicePrincipal.')
-  roleDefinitionName: ('KeyVaultAdministrator' | 'KeyVaultCertificateOfficer' | 'KeyVaultCertificateUser' | 'KeyVaultCryptoOfficer' | 'KeyVaultCryptoServiceEncryptionUser' | 'KeyVaultCryptoUser' | 'KeyVaultDataAccessAdministrator' | 'KeyVaultSecretOfficer' | 'KeyVaultSecretUser')
-  @description('Optional. Principal/Object ID of the System (User-Assignmed) managed identity.')
-  principalId: string?
-  @description('Name of the EntraID group or user for which the role is being assigned.')
-  principalName: string?
-  @description('Type of the Principal for which the role is being assigned. If the prinicipal is a managed identity resource, it should be `ServicePrincipal`.')
-  principalType: ('Group' | 'ServicePrincipal' | 'User')
-}
-
 // =================================================== //
 // Generic Role Assignment                             //
 // =================================================== //
 
-@sealed()
 @export()
-type RoleAssignment = {
+@description('Function that generates RBAC role assignment guid. Use this within your bicep files such as main.bicep to develop a unique naming for Azure role assignments.Bicep modules within RBAC functionality leverages this function to generate guid for role assignments.')
+func roleAssignmentName(resourceName string, roleName string, principalType string?, principalName string?, principalId string?) string => principalType == 'User' || principalType == 'Group' ? guid(resourceName, roleName, principalName!) : principalType == 'ServicePrincipal' && (!empty(principalName ?? '') && empty(principalId ?? '')) ? guid(resourceName, roleName, principalName!) : principalType == 'ServicePrincipal' && (empty(principalId ?? '') && empty(principalName ?? '')) ? fail('You have to either provide `principalName` or `principalId` for the type `ServicePrincipal` to successfully assign rbac role provided.') : guid(resourceName, roleName, principalId!)
+
+@export()
+@metadata({
+  name: 'RoleAssignment'
+  usage: 'Use this to simplify creation of role assignments within the bicep modules. This is a union type that can take in three different forms of role assignment: Service Principal, Group and User. Depending on the principal type you want to assign the role to, you can use the appropriate object within the RoleAssignment type.'
+})
+@discriminator('principalType')
+@description('Azure Role Assignments.')
+type RoleAssignment =  GroupRoleAssignment | ServicePrincipalRoleAssignment | UserRoleAssignment
+
+@sealed()
+type ServicePrincipalRoleAssignment = {
+  @description('Name of the role definition to be assigned to the provided principal.')
+  roleName: RoleName
+  @description('Optional. Display Name of the Managed identity or Entra ID application for which the role will be assigned.')
+  principalName: string?
+  @description('Optional. Principal ID (or Object Id) of the managed identity to which the role will be assigned. You can pass directly pass principalId of a user-assigned or system-assigned managed identity or an Entra ID Application that is being deployed by the bicep file. To use this, you have to set the value of parameter `principalName` to either `null` or `\'\'`.')
+  principalId: string?
+  @description('Principal type.')
+  principalType: 'ServicePrincipal'
   @description('Optional. The conditions on the role assignment. This limits the resources it can be assigned to. e.g.: @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase "foo_storage_container".')
   condition: string?
-  @description('Optional. Version of the condition.')
   conditionVersion: '2.0'?
   @description('Optional. Description of the role assignment.')
   description: string?
-  @description('Optional. Name (as GUID) of the role assignment. A guild will be generated if not explicitly provided.')
-  name: string?
-  @description('Name of the Role to be assigned for the user/group or servicePrincipal.')
-  roleDefinitionName: string
-  @description('Optional. Principal/Object ID of the System (User-Assignmed) managed identity.')
-  principalId: string?
-  @description('Name of the EntraID group or user for which the role is being assigned.')
-  principalName: string?
-  @description('Type of the Principal for which the role is being assigned. If the prinicipal is a managed identity resource, it should be `ServicePrincipal`.')
-  principalType: ('Group' | 'ServicePrincipal' | 'User')
 }
+
+@sealed()
+type GroupRoleAssignment = {
+  @description('Name of the role definition to be assigned to the provided principal.')
+  roleName: RoleName
+  @description('Display name of the Entra ID group for which the role will be assigned.')
+  principalName: string
+  @description('Principal type.')
+  principalType: 'Group'
+  @description('Optional. The conditions on the role assignment. This limits the resources it can be assigned to. e.g.: @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase "foo_storage_container".')
+  condition: string?
+  conditionVersion: '2.0'?
+  @description('Optional. Description of the role assignment.')
+  description: string?
+}
+
+@sealed()
+type UserRoleAssignment = {
+  @description('Name of the role definition to be assigned to the provided principal.')
+  roleName: RoleName
+  @validate(x => contains(x, '@'))
+  @description('User principal name of the user to which the role will be assigned. By convention, this value should map to the user\'s email name .For example, foo@bar.com.')
+  principalName: string
+  @description('Principal type.')
+  principalType: 'User'
+  @description('Optional. The conditions on the role assignment. This limits the resources it can be assigned to. e.g.: @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase "foo_storage_container".')
+  condition: string?
+  conditionVersion: '2.0'?
+  @description('Description of the role assignment')
+  description: string?
+}
+
+type RoleName =
+  | 'AcrPull'
+  | 'AcrPush'
+  | 'Azure AI Account Owner'
+  | 'Azure AI Administrator'
+  | 'Azure AI Developer'
+  | 'Azure AI Owner'
+  | 'Azure AI User'
+  | 'Azure Service Bus Data Owner'
+  | 'Azure Service Bus Data Receiver'
+  | 'Azure Service Bus Data Sender'
+  | 'Cognitive Services Contributor'
+  | 'Cognitive Services Data Reader'
+  | 'Cognitive Services Face Recognizer'
+  | 'Cognitive Services OpenAI User'
+  | 'Container Registry Repository Contributor'
+  | 'Container Registry Repository Catalog Lister'
+  | 'Container Registry Repository Reader'
+  | 'Container Registry Repository Writer'
+  | 'Contributor'
+  | 'Data Factory Contributor'
+  | 'EventGrid Data Contributor'
+  | 'EventGrid Data Receiver'
+  | 'EventGrid Data Sender'
+  | 'Key Vault Administrator'
+  | 'Key Vault Certificates Officer'
+  | 'Key Vault Certificate User'
+  | 'Key Vault Crypto Officer'
+  | 'Key Vault Crypto Service Encryption User'
+  | 'Key Vault Crypto User'
+  | 'Key Vault Data Access Administrator'
+  | 'Key Vault Secrets Officer'
+  | 'Key Vault Secrets User'
+  | 'Reader'
+  | 'Storage Blob Data Contributor'
+  | 'Storage Blob Data Owner'
+  | 'Storage Blob Data Reader'
+  | 'Storage Queue Data Contributor'
+  | 'Storage Queue Data Reader'
+  | 'Storage Queue Data Message Processor'
+  | 'Storage Queue Data Message Sender'
+  | 'Storage Table Data Contributor'
+  | 'Storage Table Data Reader'
+  | 'Storage Table Delegator'
+  | 'User Access Administrator'
+
 
 // ========================================    //
 //   Private DNS Zone Virtual Network Link     //
@@ -439,6 +502,30 @@ type NetworkSecurityGroupRule = {
   destinationPortRange: string
   @description('Optional. Description of the rule.')
   description: string?
+}
+
+// ========================================  //
+//        Virtual Network Peering            //
+// ========================================  //
+
+@sealed()
+@export()
+type VirtualNetworkPeering = {
+  @description('Name of peering link. ')
+  name: string
+  @description('Optional. Whether the forwarded traffic from the VMs in the local virtual network will be allowed/disallowed in remote virtual network. Defaults to disallowed.')
+  allowForwardedTraffic: false | true?
+  @description('Optional. ')
+  allowGatewayTransit: false | true?
+  allowVirtualNetworkAccess: false | true?
+  doNotVerifyRemoteGateways: false | true?
+  peerCompleteVnets: false | true
+  localSubnetNames: string[]?
+  remoteSubnetNames: string[]?
+  remoteVnetName: string
+  remoteVnetRGName: string?
+  remoteVnetSubscriptionId: resourceInput<'Microsoft.Subscription/aliases@2025-11-01-preview'>.properties.subscriptionId?
+  useRemoteGateways: false | true
 }
 
 // ========================================     //
@@ -669,14 +756,6 @@ var resourceNamePrefixMap object = {
   virtualDesktopScalingPlan: 'vdscaling'
 }
 
-var locationAliasVar object = {
-  canadacentral: 'cc'
-  canadaeast: 'ce'
-  useast: 'use'
-  useast2: 'use2'
-  uswest: 'usw'
-}
-
 @export()
 @description('''
   - Checks if the resource name adheres to the standards agreed upon.
@@ -684,53 +763,28 @@ var locationAliasVar object = {
   - If you do not needed location alias to be added to the name, the value should be: nameBuilder('virtualNetwork', 'mahi-spoke-dev', null)
   - If you want to add location alias, then it should be nameBuilder('virtualNetwork', 'mahi-spoke-prod, 'canadacentral')
 ''')
-func nameBuilder(resourceType ResourceType, suffix string, location string?) string =>
-  resourceType == 'storageAccount'
-    ? contains(suffix, 'st') || contains(suffix, 'sa')
-        ? fail('Storage account name does not adhere to the accepted standards. Name Suffix must not contain `sa` or `st`.')
-        : location == null
-            ? length(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', '')) > 24
+func nameBuilder(resourceType ResourceType, suffix string) string =>
+  startsWith(toLower(suffix), resourceNamePrefixMap[resourceType]) || endsWith(
+      toLower(suffix),
+      resourceNamePrefixMap[resourceType]
+    )
+    ? fail('Resource name suffix should not start or end with the resource name prefix to avoid confusion. Please choose a different suffix.')
+    : resourceType == 'storageAccount'
+        ? contains(suffix, 'st') || contains(suffix, 'sa')
+            ? fail('Storage account name does not adhere to the accepted standards. Name Suffix must not contain `sa` or `st`.')
+            : length(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', '')) > 24
                 ? fail('Storage account name exceeds 24 characters after removing hyphens if any. Choose a shorter suffix.')
                 : toLower(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', ''))
-            : length(replace(
-                  '${resourceNamePrefixMap[resourceType]}${locationAliasVar[toLower(location!)]}${suffix}',
-                  '-',
-                  ''
-                )) > 24
-                ? fail('Storage account name exceeds 24 characters after removing hyphens if any. Choose a shorter suffix.')
-                : toLower(replace(
-                    '${resourceNamePrefixMap[resourceType]}${locationAliasVar[toLower(location!)]}${suffix}',
-                    '-',
-                    ''
-                  ))
-    : resourceType == 'keyVault'
-        ? (contains(toLower(suffix), 'kv') || contains(toLower(suffix), 'akv'))
-            ? fail('Key Vault name does not adhere to the accepted standards. Name suffix must not contain `kv` or `akv`.')
-            : location == null
-                ? length('${resourceNamePrefixMap[resourceType]}-${suffix}') > 24
+        : resourceType == 'keyVault'
+            ? (contains(toLower(suffix), 'kv') || contains(toLower(suffix), 'akv'))
+                ? fail('Key Vault name does not adhere to the accepted standards. Name suffix must not contain `kv` or `akv`.')
+                : length('${resourceNamePrefixMap[resourceType]}-${suffix}') > 24
                     ? fail('Key Vault name exceeds 24 characters. Choose a shorter suffix.')
                     : toLower('${resourceNamePrefixMap[resourceType]}-${suffix}')
-                : length('${resourceNamePrefixMap[resourceType]}-${locationAliasVar[toLower(location!)]}-${suffix}') > 24
-                    ? fail('Key Vault name exceeds 24 characters. Choose a shorter suffix.')
-                    : toLower('${resourceNamePrefixMap[resourceType]}-${locationAliasVar[location!]}-${suffix}')
-        : resourceType == 'containerRegistry'
-            ? contains(toLower(suffix), 'cr') || contains(toLower(suffix), 'acr')
-                ? fail('Container registry name does not adhere to the accepted standards. Name suffix must contain "acr" or "cr".')
-                : location == null
-                    ? length(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', '')) > 50
+            : resourceType == 'containerRegistry'
+                ? contains(toLower(suffix), 'cr') || contains(toLower(suffix), 'acr')
+                    ? fail('Container registry name does not adhere to the accepted standards. Name suffix must contain "acr" or "cr".')
+                    : length(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', '')) > 50
                         ? fail('Container registry name exceeds 50 characters after removing hyphens if any. Choose the name suffix accordingly.')
                         : toLower(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', ''))
-                    : length(replace(
-                          '${resourceNamePrefixMap[resourceType]}${locationAliasVar[toLower(location!)]}${suffix}',
-                          '-',
-                          ''
-                        )) > 50
-                        ? fail('Container registry name exceeds 50 characters after removing hyphens if any. Choose the name suffix accordingly.')
-                        : toLower(replace(
-                            '${resourceNamePrefixMap[resourceType]}${locationAliasVar[toLower(location!)]}${suffix}',
-                            '-',
-                            ''
-                          ))
-            : location == null
-                ? toLower('${resourceNamePrefixMap[resourceType]}-${suffix}')
-                : toLower('${resourceNamePrefixMap[resourceType]}-${locationAliasVar[location!]}-${suffix}')
+                : toLower('${resourceNamePrefixMap[resourceType]}-${suffix}')

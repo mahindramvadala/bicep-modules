@@ -1,9 +1,6 @@
 targetScope = 'resourceGroup'
 
-import { VirtualNetworkSubnet, Lock, nameBuilder } from '../utilities.bicep'
-
-@description('Optional. Specify whether the location alias should be added to the resource naming convention. Defaults to false.')
-param addLocationAliasToName false | true = false
+import { VirtualNetworkSubnet, Lock, VirtualNetworkPeering,nameBuilder } from '../utilities.bicep'
 
 @description('Address space of the VNET resource.')
 param cidr string
@@ -50,11 +47,17 @@ param logAnalyticsWorkspaceRGName resourceInput<'Microsoft.Resources/resourceGro
 @description('Name suffix of the Virtual Network resource being created. \'vnet-\' will be as the prefix.')
 param nameSuffix string
 
+@description('Optional. Virtual Network Peerings to be established.')
+param peerings VirtualNetworkPeering[]?
+
 @description('Optional. Subnets to be created. Defaults to [].')
 param subnets VirtualNetworkSubnet[] = []
 
 @description('Optional. Tags to be applied to the resource.')
 param tags object?
+
+
+var remoteVirtualNetworkId string[] = [ for (each, i) in peerings ?? []: resourceId(each.?remoteVnetSubscriptionId ?? subscription().subscriptionId, each.?remoteVnetRGName ?? resourceGroup().name, 'Microsoft.Network/virtualNetworks', each.?remoteVnetName)]
 
 // get DDOS protection resource
 resource ddosPlan 'Microsoft.Network/ddosProtectionPlans@2023-09-01' existing = if (enableDdosProtectionPlan && !empty(ddosProtectionPlan)) {
@@ -73,12 +76,10 @@ resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = if
 }
 */
 
-var locationAlias = addLocationAliasToName ? location : null
-
 //@onlyIfNotExists()
 // create vnet
 resource vnet 'Microsoft.Network/virtualNetworks@2025-05-01' = {
-  name: nameBuilder('virtualNetwork', nameSuffix, locationAlias)
+  name: nameBuilder('virtualNetwork', nameSuffix)
   location: location
   tags: tags
   properties: {
@@ -124,6 +125,23 @@ resource vnet 'Microsoft.Network/virtualNetworks@2025-05-01' = {
         }
       }
     ]
+    virtualNetworkPeerings: [ for (each, i) in peerings! ?? []: {
+      name: each.name
+      properties: {
+        allowForwardedTraffic: each.?allowForwardedTraffic ?? false
+        allowGatewayTransit: each.?allowGatewayTransit ?? false
+        allowVirtualNetworkAccess: each.?allowVirtualNetworkAccess ?? true
+        doNotVerifyRemoteGateways: each.?doNotVerifyRemoteGateways
+        localSubnetNames: each.?localSubnetNames
+        peerCompleteVnets:  each.?peerCompleteVnets ?? true
+        remoteSubnetNames: each.?remoteSubnetNames
+        remoteVirtualNetwork: {
+          id: remoteVirtualNetworkId[i]
+        }
+        useRemoteGateways: each.?useRemoteGateways
+      }
+    }
+    ]
   }
 }
 
@@ -155,8 +173,9 @@ resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
 
 // Configure locking on the VNET resource
 @description('Optional. Enable or disbaling lock.')
-resource vnet_lock 'Microsoft.Authorization/locks@2020-05-01' = if (lock != null) {
+resource vnet_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {})) {
   name: lock.?name ?? 'BicepLock'
+  scope: vnet
   properties: {
     level: lock.?level ?? 'NotSpecified'
     notes: lock.?notes

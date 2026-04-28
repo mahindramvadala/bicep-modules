@@ -1,4 +1,9 @@
 // Private Endpoint module
+metadata name = 'Private endpoint bicep module'
+
+metadata description = 'This module automates creation of the private endpoint for the supported resource types.'
+
+import {nameBuilder} from '../utilities.bicep'
 
 @description('Target sub-resource of the resource type for which the private endpoint will need to be created.')
 param groupId string
@@ -28,14 +33,16 @@ param vnetName string
 param vnetRGName string = resourceGroup().name
 
 // get subnet resource
-resource pe_subnet 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' existing = {
+resource pe_subnet 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' existing = {
   name: '${vnetName}/${subnetName}'
   scope: resourceGroup(vnetRGName)
 }
 
+var name string = nameBuilder('privateEndpoint', nameSuffix)
+
 // create Private Endpoint
-resource pe 'Microsoft.Network/privateEndpoints@2023-05-01' = {
-  name: toLower('pe-${nameSuffix}')
+resource pe 'Microsoft.Network/privateEndpoints@2025-05-01' = {
+  name: name
   location: location
   tags: tags
   properties: {

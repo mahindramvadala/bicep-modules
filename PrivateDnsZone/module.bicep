@@ -1,15 +1,24 @@
 // Private Dns Zone bicep module
+metadata name = 'Private DNS Zone bicep module.'
 
-import { Tags, VirtualNetworks } from '../types.bicep'
+metadata description = 'This module helps create a Private DNS zone resource and links the virtual networks with the resource to successfully resolve the private endpoints for the specific resource type.'
+
+import { VirtualNetwork } from '../utilities.bicep'
 
 @allowed([
   'privatelink.azconfig.io'
   'privatelink.azurewebsites.net'
+  'privatelink.azurecr.io'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.blob.core.windows.net'
   'privatelink.cosmos.azure.com'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.database.windows.net'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.file.core.windows.net'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.queue.core.windows.net'
+  #disable-next-line no-hardcoded-env-urls
   'privatelink.table.core.windows.net'
   'privatelink.servicebus.windows.net'
   'privatelink.vaultcore.azure.net'
@@ -23,16 +32,19 @@ import { Tags, VirtualNetworks } from '../types.bicep'
 param name string
 
 @description('Optional. Tags to be applied to the Private DNS Zone resource,')
-param tags Tags = {}
+param tags object = {}
 
 @description('List of virtual Networks to be linked with the Private DNS Zone.')
-param virtualNetworks array
+param virtualNetworks VirtualNetwork[]
 
-// get vnet resource
-resource vnet 'Microsoft.Network/virtualNetworks@2020-06-01' existing = [for each in virtualNetworks: {
-  name: each.name
-  scope: contains(each, 'resourceGroup') ? resourceGroup(each.resourceGroup) : resourceGroup()
-}]
+var vnet = [
+  for each in virtualNetworks: resourceId(
+    each.?subscriptionId ?? subscription().subscriptionId,
+    each.?resourceGroup ?? resourceGroup().name,
+    'Microsoft.Network/virtualNetworks',
+    each.name
+  )
+]
 
 // create Private Dns Zone resource
 resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
@@ -40,16 +52,18 @@ resource dnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   location: 'global'
   tags: tags
   properties: {}
-  resource vnetLink 'virtualNetworkLinks' = [for (each, i) in virtualNetworks: {
-    name: 'link-${each.name}'
-    location: 'global'
-    properties: {
-      registrationEnabled: false
-      virtualNetwork: {
-        id: vnet[i].id
+  resource vnetLink 'virtualNetworkLinks' = [
+    for (each, i) in virtualNetworks: {
+      name: 'link-${each.name}'
+      location: 'global'
+      properties: {
+        registrationEnabled: false
+        virtualNetwork: {
+          id: vnet[i]
+        }
       }
     }
-  }]
+  ]
 }
 
 //outputs

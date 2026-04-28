@@ -20,5 +20,20 @@
   },
   "extensions": {
     "msgraph": "br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0"
+  },
+  "cloud": {
+    "currentProfile": "AzureCloud",
+    "credentialPrecedence": [
+      "AzureCLI",
+      "ManagedIdentity",
+      "VisualStudioCode",
+      "Environment"
+    ] /*,
+    "credentialOptions": {
+      "managedIdentity": {
+        "clientId": "" //Application Id (or client Id) of user-assigned managed identity that Bicep uses to authenticate.
+      }
+    }
+    */
   }
 }

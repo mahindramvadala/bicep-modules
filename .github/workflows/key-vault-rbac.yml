@@ -1,25 +1,21 @@
-name: Publish Key Vault Bicep module
+name: Publish Key Vault RBAC Bicep module
 
 on:
     workflow_dispatch:
     pull_request:
         branches:
-          - main
+            - main
         paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
+            - 'KeyVaultRBAC/*'
             - 'utilities.bicep'
+            - '.github/workflows/key-vault-rbac.yml'
     push:
         branches:
             - main
         paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
+            - 'KeyVaultRBAC/*'
             - 'utilities.bicep'
+            - '.github/workflows/key-vault-rbac.yml'
 jobs:
     key-vault:
         permissions:
@@ -31,6 +27,6 @@ jobs:
             azure-tenant-id: ${{ secrets.TENANT_ID }}
             azure-subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
         with:
-            bicep-file-path: ./KeyVault/
+            bicep-file-path: ./KeyVaultRBAC
             registry-name: crmahi
-            registry-path: key-vault/vault:1.0
+            registry-path: key-vault/rbac:1.0

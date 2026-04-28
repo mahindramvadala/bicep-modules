@@ -1,48 +1,51 @@
 name: Publish Bicep Module
 on:
   workflow_call:
-    inputs:
+    secrets:
       azure-client-id:
-        required: false
-        type: string
-        description: Optional. Client ID of the managed identity or Entra ID App used to authenticate to Azure. Defaults to Bicep-Publish-App.
-        default: 4efea1b2-111b-464b-aa2f-efa403e4c7d4
-
+        required: true
       azure-subscription-id:
-        required: false
-        type: string
-        description: Azure Subscription ID
-        default: 830248f2-52b1-4955-8d2b-f8e3f22a2bbb
-
+        required: true
       azure-tenant-id:
-        required: false
-        type: string
-        description: Azure Tenant ID
-        default: f6d5b8fa-99ce-4d79-b064-fd17d82f3568
-
+        required: true
+    inputs:
       bicep-file-path:
         required: true
         type: string
-        description:  Path for the bicep file that needs to be published as module
-
+        description:  Path for the bicep file that needs to be published as module.
       registry-name:
         required: true
         type: string
         description: Name of the container registry where the bicep modules will be published
-
       registry-path:
         required: true
         type: string
         description: Path for the bicep module within the container registry from which it can be consumed
+
 
 permissions:
   contents: read
   id-token: write
 
 jobs:
+  # Job only runs when a PR raises
+  scan-bicep-module:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Run PSRule analysis
+        uses: microsoft/ps-rule@latest
+        with:
+          inputType: inputPath
+          inputPath: ${{ inputs.bicep-file-path }}
+          baseline: 'Azure.All'
+
   publish-bicep-module:
     # Job only runs when changes are pushed to main branch.
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,8 +56,8 @@ jobs:
     - name: Login to Azure Cloud
       uses: Azure/login@v2.3.0
       with:
-        client-id: ${{ inputs.azure-client-id }}
-        tenant-id: ${{ inputs.azure-tenant-id }}
-        subscription-id: ${{ inputs.azure-subscription-id }}
+        client-id: ${{ secrets.azure-client-id }}
+        tenant-id: ${{ secrets.azure-tenant-id }}
+        subscription-id: ${{ secrets.azure-subscription-id }}
     - name: Publish Bicep Module to ACR
-      run: az bicep publish --file ${{ inputs.bicep-file-path  }} --target "br:${{ inputs.registry-name }}.azurecr.io/${{ inputs.registry-path }}" --with-source --force
+      run: az bicep publish --file "${{ inputs.bicep-file-path  }}/module.bicep" --target "br:${{ inputs.registry-name }}.azurecr.io/${{ inputs.registry-path }}" --with-source --force

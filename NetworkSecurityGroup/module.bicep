@@ -1,6 +1,6 @@
 // Bicep module to create network security group (NSG) resource.
 
-import { NetworkSecurityGroupRules } from '../types.bicep'
+import { NetworkSecurityGroupRule } from '../utilities.bicep'
 
 @description('Optional. Azure region where the NSG resource will be created. Defaults to the resource group location.')
 param location string?
@@ -9,7 +9,7 @@ param location string?
 param nameSuffix string
 
 @description('List of security rules to apply to the NSG. Accepts [] as the value to create the NSG with the default security rules.')
-param securityRules NetworkSecurityGroupRules
+param securityRules NetworkSecurityGroupRule[]
 
 @description('Optiomal. Tags applied to the NSG resource.')
 param tags object?

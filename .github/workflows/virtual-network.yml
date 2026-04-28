@@ -1,25 +1,21 @@
-name: Publish Key Vault Bicep module
+name: Publish Virtual Network Bicep module
 
 on:
     workflow_dispatch:
     pull_request:
         branches:
-          - main
+            - main
         paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
+            - 'VirtualNetwork/**'
             - 'utilities.bicep'
+            - '.github/workflows/virtual-network.yml'
     push:
         branches:
             - main
         paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
+            - 'VirtualNetwork/**'
             - 'utilities.bicep'
+            - '.github/workflows/virtual-network.yml'
 jobs:
     key-vault:
         permissions:
@@ -31,6 +27,6 @@ jobs:
             azure-tenant-id: ${{ secrets.TENANT_ID }}
             azure-subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
         with:
-            bicep-file-path: ./KeyVault/
+            bicep-file-path: ./VirtualNetwork/
             registry-name: crmahi
-            registry-path: key-vault/vault:1.0
+            registry-path: network/vnet:1.0
