@@ -30,7 +30,7 @@ permissions:
 jobs:
   # Job only runs when a PR raises
   scan-bicep-module:
-    if: ${{ github.event_name == 'pull_request' }}
+    #if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
