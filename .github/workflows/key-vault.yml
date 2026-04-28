@@ -2,6 +2,18 @@ name: Publish Key Vault Bicep module
 
 on:
     workflow_dispatch:
+        inputs:
+            output_format:
+                required: true
+                type: choice
+                options:
+                    - None
+                    - Yaml
+                    - Json
+                    - Csv
+                    - Markdown
+                    - Sarif
+                default: None
     pull_request:
         branches:
           - main
@@ -34,3 +46,4 @@ jobs:
             bicep-file-path: ./KeyVault/
             registry-name: crmahi
             registry-path: key-vault/vault:1.0
+            output-format: ${{ inputs.output_format }}
