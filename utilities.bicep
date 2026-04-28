@@ -402,7 +402,8 @@ type GroupRoleAssignment = {
 type UserRoleAssignment = {
   @description('Name of the role definition to be assigned to the provided principal.')
   roleName: RoleName
-  @description('Name of the user principal to which the role will be assigned. For example, foo@bar.com.')
+  @validate(x => contains(x, '@'))
+  @description('User principal name of the user to which the role will be assigned. By convention, this value should map to the user\'s email name .For example, foo@bar.com.')
   principalName: string
   @description('Principal type.')
   principalType: 'User'

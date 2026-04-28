@@ -2,21 +2,31 @@ name: Publish Key Vault RBAC Bicep module
 
 on:
     workflow_dispatch:
-    #push:
-    #    branches:
-    #        - main
-    #    paths:
-    #        - 'KeyVaultRBAC/*'
-    #        - 'utilities.bicep'
-    #       - '.github/workflows/key-vault-rbac.yml'
+    pull_request:
+        branches:
+            - main
+        paths:
+            - 'KeyVaultRBAC/*'
+            - 'utilities.bicep'
+            - '.github/workflows/key-vault-rbac.yml'
+    push:
+        branches:
+            - main
+        paths:
+            - 'KeyVaultRBAC/*'
+            - 'utilities.bicep'
+            - '.github/workflows/key-vault-rbac.yml'
 jobs:
     key-vault:
         permissions:
             contents: read
             id-token: write
         uses: ./.github/workflows/bicep-publish.yml
+        secrets:
+            azure-client-id: ${{ secrets.ClIENT_ID }}
+            azure-tenant-id: ${{ secrets.TENANT_ID }}
+            azure-subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
         with:
-            azure-client-id: 4efea1b2-111b-464b-aa2f-efa403e4c7d4
-            bicep-file-path: ./KeyVaultRBAC/module.bicep
-            registry-name: mahicr
+            bicep-file-path: ./KeyVaultRBAC
+            registry-name: crmahi
             registry-path: key-vault/rbac:1.0
