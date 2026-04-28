@@ -7,6 +7,8 @@ param enablePurgeProtection = false
 param nameSuffix = 'mahi-dummy'
 param sku = 'standard'
 
+/*
+// Optional.
 param roleAssignments = [
   {
     principalName: 'CLGROUP-MAHI-DUMMY'
@@ -18,15 +20,14 @@ param roleAssignments = [
     roleName: 'Key Vault Administrator'
     principalName: 'mi-mahi-dummy' //Name of uami or sami resource
   }
-  /*
   // This element serves an example for assigning a key vault data plane permission to a user within the organization. best practice is to use group assignments.
   {
     principalName: 'foo@bar.com'
     principalType: 'User'
     roleName: 'Key Vault Administrator'
   }
-  */
 ]
+*/
 
 /*
 // Optional. Only needed if private endpoint needs to be setup. By Default, module does not create private endpoint
