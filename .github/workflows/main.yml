@@ -1,0 +1,11 @@
+on:
+  workflow_dispatch:
+  
+jobs:
+  bicep-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: CheckAZureBicepVersion
+        run: az bicep version
+      - name: CheckBicepCLIVersion
+        run: bicep --version
