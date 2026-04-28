@@ -44,6 +44,7 @@ jobs:
           inputType: inputPath
           inputPath: ${{ inputs.bicep-file-path }}
           baseline: 'Azure.All'
+          modules: PSRule.Rules.Azure
 
   publish-bicep-module:
     needs: scan-bicep-module
