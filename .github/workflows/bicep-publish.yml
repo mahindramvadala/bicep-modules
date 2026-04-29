@@ -12,6 +12,9 @@ on:
         description: Tenant ID used for Azure authentication scenario
         required: true
     inputs:
+      output-format:
+        required: true
+        type: string
       bicep-file-path:
         required: true
         type: string
