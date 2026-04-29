@@ -1,4 +1,4 @@
-name: Publish Entra ID object retrieval module
+name: Publish Network Security Group Bicep module
 
 on:
     workflow_dispatch:
@@ -6,16 +6,16 @@ on:
         branches:
             - main
         paths:
-            - 'EntraIDObjectRetrieve/**'
+            - 'VirtualNetwork/**'
             - 'utilities.bicep'
-            -  '.github/workflows/entraid_retrival.yml'
+            - '.github/workflows/virtual-network.yml'
     push:
         branches:
             - main
         paths:
-            - 'EntraIDObjectRetrieve/**'
+            - 'NetworkSecurityGroup/**'
             - 'utilities.bicep'
-            -  '.github/workflows/entraid_retrival.yml'
+            - '.github/workflows/network-security-group.yml'
 jobs:
     key-vault:
         permissions:
@@ -27,6 +27,6 @@ jobs:
             azure-tenant-id: ${{ secrets.TENANT_ID }}
             azure-subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
         with:
-            bicep-file-path: ./EntraIDObjectRetrieve/
+            bicep-file-path: NetworkSecurityGroup/
             registry-name: crmahi
-            registry-path: entraid/get-object:1.0
+            registry-path: network/nsg:1.0

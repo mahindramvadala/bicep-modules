@@ -18,7 +18,7 @@ param recoverVault true | false = false
   true
 ])
 @description('If true, enables purge protection for the key vault.')
-param enablePurgeProtection bool
+param enablePurgeProtection bool = true
 
 @description('Optional. Property that controls how data actions are authorized. When true, the key vault will use Role Based Access Control (RBAC) for authorization of data actions, and the access policies specified in vault properties will be ignored. When false, the key vault will use the access policies. Defaults to `true`.')
 param enableRbacAuth false | true = true

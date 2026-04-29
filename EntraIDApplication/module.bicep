@@ -55,7 +55,7 @@ output clientId string = appreg.appId
 
 output objectId string = appreg.id
 
-output clientsecret string = !empty(clientSecretName) ? appreg.passwordCredentials[0].secretText : ''
+output clientsecret string = !empty(clientSecretName!) ? appreg.passwordCredentials[0].secretText : ''
 
 output varResourceAccess array = resourceAccess
 

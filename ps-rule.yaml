@@ -1,0 +1,29 @@
+requires:
+  PSRule.Rules.Azure: ">=1.47.0"
+
+include:
+  module:
+    - PSRule.Rules.Azure
+
+configuration:
+  #AZURE_BICEP_FILE_EXPANSION: true
+  #AZURE_BICEP_FILE_EXPANSION_TIMEOUT: 5
+  #AZURE_PARAMETER_FILE_EXPANSION: true
+  #AZURE_BICEP_PARAMS_FILE_EXPANSION: true
+  AZURE_BICEP_CHECK_TOOL: true
+  AZURE_BICEP_MINIMUM_VERSION: '0.42.1'
+
+
+## As this repo contains reusable modules, its wise to exclude certain rules to suppress erros as the test bicepparam file may not contain complete configuration and have been commented as they are just examples
+
+rule:
+  exclude:
+    - "Azure.Resource.UseTags"
+    - "Azure.KeyVault.Logs"
+    - "Azure.NSG.LateralTraversal"
+    - "Azure.KeyVault.Firewall"
+
+#suppression:
+#  Azure.KeyVault.Firewall:
+#     targetName:
+#      - kv-dummy

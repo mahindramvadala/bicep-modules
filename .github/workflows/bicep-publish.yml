@@ -3,10 +3,13 @@ on:
   workflow_call:
     secrets:
       azure-client-id:
+        description: Azure Client ID to be used to authenticate to Azure
         required: true
       azure-subscription-id:
+        description: Azure Subscription GUID authenticate
         required: true
       azure-tenant-id:
+        description: Tenant ID used for Azure authentication scenario
         required: true
     inputs:
       output-format:
@@ -32,31 +35,9 @@ permissions:
 
 jobs:
   # Job only runs when a PR raises
-  scan-bicep-module:
-    #if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.1
-      - name: Run PSRule analysis
-        uses: microsoft/ps-rule@latest
-        with:
-          inputType: inputPath
-          inputPath: ${{ inputs.bicep-file-path }}
-          baseline: 'Azure.All'
-          modules: PSRule.Rules.Azure
-          outcome: All
-          outputFormat: ${{ inputs.output-format }}
-        env:
-          PSRULE_CONFIGURATION_AZURE_BICEP_FILE_EXPANSION: true
-
-  publish-bicep-module:
-    needs: scan-bicep-module
+  publish-module:
     # Job only runs when changes are pushed to main branch.
-    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'push' }}
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,5 +51,24 @@ jobs:
         client-id: ${{ secrets.azure-client-id }}
         tenant-id: ${{ secrets.azure-tenant-id }}
         subscription-id: ${{ secrets.azure-subscription-id }}
-    - name: Publish Bicep Module to ACR
-      run: az bicep publish --file "${{ inputs.bicep-file-path  }}/module.bicep" --target "br:${{ inputs.registry-name }}.azurecr.io/${{ inputs.registry-path }}" --with-source --force
+    - name: Lint module
+      if: ${{ github.event_name == 'pull_request'  }}
+      run: |
+        echo "Restoring nested/child modules from private registry if any..."
+        az bicep restore --file "${{ inputs.bicep-file-path }}/module.bicep" --force
+        echo "Running linter on ${{ inputs.bicep-file-path }}/module.bicep..."
+        az bicep lint --file "${{ inputs.bicep-file-path }}/module.bicep"
+    - name: Run PSRule analysis
+      uses: microsoft/ps-rule@latest
+      if: ${{ github.event_name == 'pull_request'  }}
+      with:
+          inputType: inputPath
+          inputPath: ${{ inputs.bicep-file-path }}
+          baseline: 'Azure.All'
+          modules: PSRule.Rules.Azure
+          outcome: All
+    - name: Publish module to ACR
+      if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+      run: |
+        echo "Publishing module ${{ inputs.registry-path }}..."
+        az bicep publish --file "${{ inputs.bicep-file-path  }}/module.bicep" --target "br:${{ inputs.registry-name }}.azurecr.io/${{ inputs.registry-path }}" --with-source --force
