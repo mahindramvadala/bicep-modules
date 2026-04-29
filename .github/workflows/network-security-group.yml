@@ -8,7 +8,7 @@ on:
         paths:
             - 'VirtualNetwork/**'
             - 'utilities.bicep'
-            - '.github/workflows/virtual-network.yml'
+            - '.github/workflows/network-security-group.yml'
     push:
         branches:
             - main

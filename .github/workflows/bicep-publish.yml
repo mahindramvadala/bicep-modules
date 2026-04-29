@@ -12,9 +12,6 @@ on:
         description: Tenant ID used for Azure authentication scenario
         required: true
     inputs:
-      output-format:
-        required: true
-        type: string
       bicep-file-path:
         required: true
         type: string
@@ -37,7 +34,7 @@ jobs:
   # Job only runs when a PR raises
   publish-module:
     # Job only runs when changes are pushed to main branch.
-
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,7 +49,6 @@ jobs:
         tenant-id: ${{ secrets.azure-tenant-id }}
         subscription-id: ${{ secrets.azure-subscription-id }}
     - name: Lint module
-      if: ${{ github.event_name == 'pull_request'  }}
       run: |
         echo "Restoring nested/child modules from private registry if any..."
         az bicep restore --file "${{ inputs.bicep-file-path }}/module.bicep" --force
@@ -60,7 +56,6 @@ jobs:
         az bicep lint --file "${{ inputs.bicep-file-path }}/module.bicep"
     - name: Run PSRule analysis
       uses: microsoft/ps-rule@latest
-      if: ${{ github.event_name == 'pull_request'  }}
       with:
           inputType: inputPath
           inputPath: ${{ inputs.bicep-file-path }}
@@ -68,7 +63,6 @@ jobs:
           modules: PSRule.Rules.Azure
           outcome: All
     - name: Publish module to ACR
-      if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
       run: |
         echo "Publishing module ${{ inputs.registry-path }}..."
         az bicep publish --file "${{ inputs.bicep-file-path  }}/module.bicep" --target "br:${{ inputs.registry-name }}.azurecr.io/${{ inputs.registry-path }}" --with-source --force
