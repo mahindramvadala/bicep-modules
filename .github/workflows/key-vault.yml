@@ -46,4 +46,3 @@ jobs:
             bicep-file-path: ./KeyVault/
             registry-name: crmahi
             registry-path: key-vault/vault:1.0
-            output-format: ${{ inputs.output_format }}
