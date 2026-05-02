@@ -2,36 +2,24 @@ name: Publish Key Vault Bicep module
 
 on:
     workflow_dispatch:
-        inputs:
-            output_format:
-                required: true
-                type: choice
-                options:
-                    - None
-                    - Yaml
-                    - Json
-                    - Csv
-                    - Markdown
-                    - Sarif
-                default: None
-    pull_request:
-        branches:
-          - main
-        paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
-            - 'utilities.bicep'
-    push:
-        branches:
-            - main
-        paths:
-            - 'KeyVault/**'
-            - '.github/workflows/key-vault.yml'
-            - 'PrivateEndpoint/module.bicep'
-            - 'KeyVaultRBAC/module.bicep'
-            - 'utilities.bicep'
+#    pull_request:
+#        branches:
+#          - main
+#        paths:
+#            - 'KeyVault/**'
+#            - '.github/workflows/key-vault.yml'
+#            - 'PrivateEndpoint/module.bicep'
+#            - 'KeyVaultRBAC/module.bicep'
+#            - 'utilities.bicep'
+#    push:
+#        branches:
+#            - main
+#        paths:
+#            - 'KeyVault/**'
+#            - '.github/workflows/key-vault.yml'
+#            - 'PrivateEndpoint/module.bicep'
+#            - 'KeyVaultRBAC/module.bicep'
+#            - 'utilities.bicep'
 jobs:
     key-vault:
         permissions:

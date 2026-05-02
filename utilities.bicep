@@ -355,7 +355,20 @@ type KeyVaultAccessPolicy = {
 
 @export()
 @description('Function that generates RBAC role assignment guid. Use this within your bicep files such as main.bicep to develop a unique naming for Azure role assignments.Bicep modules within RBAC functionality leverages this function to generate guid for role assignments.')
-func roleAssignmentName(resourceName string, roleName string, principalType string?, principalName string?, principalId string?) string => principalType == 'User' || principalType == 'Group' ? guid(resourceName, roleName, principalName!) : principalType == 'ServicePrincipal' && (!empty(principalName ?? '') && empty(principalId ?? '')) ? guid(resourceName, roleName, principalName!) : principalType == 'ServicePrincipal' && (empty(principalId ?? '') && empty(principalName ?? '')) ? fail('You have to either provide `principalName` or `principalId` for the type `ServicePrincipal` to successfully assign rbac role provided.') : guid(resourceName, roleName, principalId!)
+func roleAssignmentName(
+  resourceName string,
+  roleName string,
+  principalType string?,
+  principalName string?,
+  principalId string?
+) string =>
+  principalType == 'User' || principalType == 'Group'
+    ? guid(resourceName, roleName, principalName!)
+    : principalType == 'ServicePrincipal' && (!empty(principalName ?? '') && empty(principalId ?? ''))
+        ? guid(resourceName, roleName, principalName!)
+        : principalType == 'ServicePrincipal' && (empty(principalId ?? '') && empty(principalName ?? ''))
+            ? fail('You have to either provide `principalName` or `principalId` for the type `ServicePrincipal` to successfully assign rbac role provided.')
+            : guid(resourceName, roleName, principalId!)
 
 @export()
 @metadata({
@@ -364,7 +377,7 @@ func roleAssignmentName(resourceName string, roleName string, principalType stri
 })
 @discriminator('principalType')
 @description('Azure Role Assignments.')
-type RoleAssignment =  GroupRoleAssignment | ServicePrincipalRoleAssignment | UserRoleAssignment
+type RoleAssignment = GroupRoleAssignment | ServicePrincipalRoleAssignment | UserRoleAssignment
 
 @sealed()
 type ServicePrincipalRoleAssignment = {
@@ -388,7 +401,7 @@ type GroupRoleAssignment = {
   @description('Name of the role definition to be assigned to the provided principal.')
   roleName: RoleName
   @description('Display name of the Entra ID group for which the role will be assigned.')
-  principalName: string
+  principalName: string?
   @description('Principal type.')
   principalType: 'Group'
   @description('Optional. The conditions on the role assignment. This limits the resources it can be assigned to. e.g.: @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase "foo_storage_container".')
@@ -396,15 +409,16 @@ type GroupRoleAssignment = {
   conditionVersion: '2.0'?
   @description('Optional. Description of the role assignment.')
   description: string?
+  @description('Object Id of the Entra ID group.')
+  principalId: string?
 }
 
 @sealed()
 type UserRoleAssignment = {
   @description('Name of the role definition to be assigned to the provided principal.')
   roleName: RoleName
-  @validate(x => contains(x, '@'))
   @description('User principal name of the user to which the role will be assigned. By convention, this value should map to the user\'s email name .For example, foo@bar.com.')
-  principalName: string
+  principalName: string?
   @description('Principal type.')
   principalType: 'User'
   @description('Optional. The conditions on the role assignment. This limits the resources it can be assigned to. e.g.: @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:ContainerName] StringEqualsIgnoreCase "foo_storage_container".')
@@ -412,6 +426,8 @@ type UserRoleAssignment = {
   conditionVersion: '2.0'?
   @description('Description of the role assignment')
   description: string?
+  @description('Object Id of the Entra ID user.')
+  principalId: string?
 }
 
 type RoleName =
@@ -459,7 +475,6 @@ type RoleName =
   | 'Storage Table Data Reader'
   | 'Storage Table Delegator'
   | 'User Access Administrator'
-
 
 // ========================================    //
 //   Private DNS Zone Virtual Network Link     //

@@ -2,20 +2,20 @@ name: Publish Entra ID Application module
 
 on:
     workflow_dispatch:
-    pull_request:
-        branches:
-            - main
-        paths:
-            - 'EntraIDApplication/**'
-            - 'utilities.bicep'
-            - '.github/workflows/entraid-app.yml'
-    push:
-        branches:
-            - main
-        paths:
-            - 'EntraIDApplication**'
-            - 'utilities.bicep'
-            - '.github/workflows/entraid-app.yml'
+#    pull_request:
+#        branches:
+#            - main
+#        paths:
+#            - 'EntraIDApplication/**'
+#            - 'utilities.bicep'
+#            - '.github/workflows/entraid-app.yml'
+#    push:
+#        branches:
+#            - main
+#        paths:
+#            - 'EntraIDApplication**'
+#            - 'utilities.bicep'
+#            - '.github/workflows/entraid-app.yml'
 jobs:
     key-vault:
         permissions:

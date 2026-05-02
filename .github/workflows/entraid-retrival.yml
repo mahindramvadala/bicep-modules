@@ -2,20 +2,20 @@ name: Publish Entra ID object retrieval module
 
 on:
     workflow_dispatch:
-    pull_request:
-        branches:
-            - main
-        paths:
-            - 'EntraIDObjectRetrieve/**'
-            - 'utilities.bicep'
-            -  '.github/workflows/entraid_retrival.yml'
-    push:
-        branches:
-            - main
-        paths:
-            - 'EntraIDObjectRetrieve/**'
-            - 'utilities.bicep'
-            -  '.github/workflows/entraid_retrival.yml'
+#    pull_request:
+#       branches:
+#            - main
+#        paths:
+#            - 'EntraIDObjectRetrieve/**'
+#            - 'utilities.bicep'
+#            -  '.github/workflows/entraid_retrival.yml'
+#    push:
+#        branches:
+#            - main
+#        paths:
+#            - 'EntraIDObjectRetrieve/**'
+#            - 'utilities.bicep'
+#            -  '.github/workflows/entraid_retrival.yml'
 jobs:
     key-vault:
         permissions:
@@ -27,6 +27,6 @@ jobs:
             azure-tenant-id: ${{ secrets.TENANT_ID }}
             azure-subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
         with:
-            bicep-file-path: ./EntraIDObjectRetrieve/
+            bicep-file-path: ./EntraIDObject/
             registry-name: crmahi
-            registry-path: entraid/get-object:1.0
+            registry-path: entraid/objectid:1.0

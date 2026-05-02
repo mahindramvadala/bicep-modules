@@ -1,14 +1,14 @@
 metadata name = 'Entra ID Group\'s Principal ID retreival deployment script bicep module'
 
 metadata description = '''
-- This module retrieves the object ID of an Entra ID group or user or a service principal using Microsoft Graph PowerShell packed as a deployment script bicep resource.
+- This module retrieves the object ID of an Entra ID group or user or a service principal using Microsoft Graph API pacaged as a deployment script resource .
 
 - The module uses a user assigned managed identity named `mi-entraid` deployed. Ensure a user-assigned managed identity resource with that name is created or if you want to use a different managed identity resource, you can specify using optional parameters related to UAMI configuration. You can pick a UAMI from any rg or subscription. The identity needs to have atleast `Group.Read.All`,`User.Read.All`,`Application.Read.All` permissions assigned or Application Administrator EntraID role. Its recommended to create a custom role with the above permissions and assign it to the user-assigned identity the script uses.
 
 Optionally, the script provides the option of running script over a private endpoint securely through the use of `storageAccount` and `containerSettings` parameters. Ensure the subnet chosen has delegation as `Microsoft.ContainerInstance/containerGroups`. If the private endpoint is setup for the storage Account chosen, the DNS resolution should be inplace to connect to the Private endpoint of the Storage account from the subnet securely. Review 'Microsoft.ContainerInstance/containerGroups'
 '''
 
-extension msgraph
+//extension msgraph
 
 @description('Type of the Principal.')
 param principalType ('Group' | 'ServicePrincipal' | 'User')
@@ -74,12 +74,13 @@ resource script_uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2025-05-3
     userAssignedManagedIdentityRGName ?? resourceGroup().name
   )
 }
-
+/*
 resource entraid_user 'Microsoft.Graph/users@v1.0' existing = if (principalType == 'User') {
   userPrincipalName: principalName ?? 'dummy'
 }
+*/
 
-resource dscript 'Microsoft.Resources/deploymentScripts@2023-08-01' = if (principalType != 'User') {
+resource dscript 'Microsoft.Resources/deploymentScripts@2023-08-01' = /*if (principalType != 'User') */ {
   name: 'GetObjectId_${trim(replace(principalName, '@', ''))}'
   location: resourceGroup().location
   kind: 'AzurePowerShell'
@@ -96,14 +97,22 @@ resource dscript 'Microsoft.Resources/deploymentScripts@2023-08-01' = if (princi
     scriptContent: '''
       param(
         [string]$PrincipalName,
-        [validateSet("Group", "ServicePrincipal")]
+        [validateSet("Group", "ServicePrincipal", "User")]
         [string]$PrincipalType
       )
       try {
         Write-Host "Retrieving Oauth token to authenticate to Entra ID..."
         $SecureToken = (Invoke-RestMethod -Method GET -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2025-04-07&resource=https://graph.microsoft.com/" -Headers @{ Metadata="true" } -ErrorAction Stop).access_token | ConvertTo-SecureString -AsPlainText -Force
         Write-Host "Successfully Retrieved the access token by querying the Instance Metadata service and converted it to Secure string."
-        if ($PrincipalType -eq "Group") {
+        if ($PrincipalType -eq "User") {
+          Write-Host "Retrieving the group object using Microsoft graph API..."
+          $Response = Invoke-RestMethod -Method GET -uri "https://graph.microsoft.com/v1.0/users?`$filter=userPrincipalName eq '$PrincipalName'" -Authentication Bearer -Token $SecureToken -ContentType "application/json" -ErrorAction Stop
+          Write-Host "Successfully retrieved the Entra ID group user by calling the Microsoft graph api."
+          $Id = $Response.value[0].id
+          $DeploymentScriptOutputs = @{}
+          $DeploymentScriptOutputs['objectId']=$Id
+        }
+        elseif ($PrincipalType -eq "Group") {
           Write-Host "Retrieving the group object using Microsoft graph API..."
           $Response = Invoke-RestMethod -Method GET -uri "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$PrincipalName'" -Authentication Bearer -Token $SecureToken -ContentType "application/json" -ErrorAction Stop
           Write-Host "Successfully retrieved the Entra ID group object by calling the Microsoft graph api."
@@ -121,7 +130,7 @@ resource dscript 'Microsoft.Resources/deploymentScripts@2023-08-01' = if (princi
         }
       }
       catch {
-        Write-Host "Failed to retrieve the object ID of the Entra ID Group or Service principal"
+        Write-Host "Failed to retrieve the object ID of the Entra ID Group, Service Principal or User."
         $Details = @{
           timeStamp = Get-Date -AsUTC -Format 'o'
           message = $_.Exception.Message
@@ -160,4 +169,4 @@ resource dscript 'Microsoft.Resources/deploymentScripts@2023-08-01' = if (princi
 
 //outputs
 @description('Object Id or principal Id of the Entra ID user or group or service principal.')
-output id string = principalType == 'User' ? entraid_user.?id : dscript.?properties.outputs.objectId
+output id string = /*principalType == 'User' ? entraid_user.?id : */ dscript.?properties.outputs.objectId

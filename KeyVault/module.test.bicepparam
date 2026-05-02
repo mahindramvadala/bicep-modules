@@ -2,31 +2,33 @@ using './module.bicep'
 
 // Test param file to scan the module using PSRules with default options
 
-param nameSuffix = 'dummy'
+param nameSuffix = 'mahi-foobar'
 param sku = 'standard'
 
 /*
 // Optional.
 param roleAssignments = [
   {
-    principalName: 'CLGROUP-DUMMY'
+    principalName: 'clgroup-foobar'
+    //principalId: 'ffffffff-ffff-ffff-ffff-ffffffffffff'
     principalType: 'Group'
     roleName: 'Key Vault Administrator'
   }
   {
+    principalName: 'foobar-app'
     principalType: 'ServicePrincipal'
     roleName: 'Key Vault Administrator'
-    principalName: 'mi-dummy' //Name of uami or sami resource
+    //principalId: 'ffffffff-ffff-ffff-ffff-ffffffffffff' //PrincipalId of uami or sami resource
   }
   // This element serves an example for assigning a key vault data plane permission to a user within the organization. best practice is to use group assignments.
   {
-    principalName: 'foo@bar.com'
+    //principalId: 'ffffffff-ffff-ffff-ffff-ffffffffffff'
     principalType: 'User'
     roleName: 'Key Vault Administrator'
+    principalName: 'foo@bar.com'
   }
 ]
 */
-
 /*
 // Optional. Only needed if private endpoint needs to be setup. By Default, module does not create private endpoint
 

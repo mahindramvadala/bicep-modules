@@ -1,13 +1,15 @@
 using './module.bicep'
 
-// Test param file for PSRule scanning
+// Test param file to scan the module using PSRules with default options
 
-param keyVaultName = 'kv-dummy'
+param keyVaultName = 'kv-mahi-foobar'
+
 param roleAssignments = [
   {
-    principalName: 'foo@bar.com'
     principalType: 'User'
-    roleName: 'Key Vault Secrets User'
+    roleName: 'Key Vault Administrator'
+    principalName: 'foo@bar.com'
+    //principalId: 'ffffffff-ffff-ffff-ffff-ffffffffffff'
   }
-  // ctrl +space to add another assignment element
+  //
 ]

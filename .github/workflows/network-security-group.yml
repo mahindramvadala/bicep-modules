@@ -2,20 +2,20 @@ name: Publish Network Security Group Bicep module
 
 on:
     workflow_dispatch:
-    pull_request:
-        branches:
-            - main
-        paths:
-            - 'VirtualNetwork/**'
-            - 'utilities.bicep'
-            - '.github/workflows/network-security-group.yml'
-    push:
-        branches:
-            - main
-        paths:
-            - 'NetworkSecurityGroup/**'
-            - 'utilities.bicep'
-            - '.github/workflows/network-security-group.yml'
+#    pull_request:
+#       branches:
+#            - main
+#        paths:
+#            - 'VirtualNetwork/**'
+#            - 'utilities.bicep'
+#            - '.github/workflows/network-security-group.yml'
+#    push:
+#        branches:
+#            - main
+#        paths:
+#            - 'NetworkSecurityGroup/**'
+#            - 'utilities.bicep'
+#            - '.github/workflows/network-security-group.yml'
 jobs:
     key-vault:
         permissions:
