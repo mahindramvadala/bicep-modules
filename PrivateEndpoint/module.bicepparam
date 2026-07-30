@@ -6,11 +6,11 @@ This example shows deploying private endpoint for a key vault resource (all valu
 */
 
 param groupId = 'vault'
-param nameSuffix = 'demo1'
+param nameSuffix = 'demo2'
 param privateDnsZoneIds = ['dummy'] //'/subscriptions/ffffffff-ffff-ffff-ffff-ffffffffffff/resourceGroup/ps-rule-test-rg/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net'
 param privateLinkServiceId = 'dummy' //'/subscriptions/ffffffff-ffff-ffff-ffff-ffffffffffff/resourceGroup/ps-rule-test-rg/Microsoft.KeyVault/vaults/kv-dummy'
 param subnetName = 'snet-dummy'
 param vnetName = 'vnet-dummy'
-param location = 'canadacentral'
+param location = 'canadaeast'
 //param vnetRGName = 'rg-network-dummy' //Optional
 //param tags = {} // Optional

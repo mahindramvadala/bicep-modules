@@ -1,6 +1,8 @@
-targetScope = 'resourceGroup'
+metadata name = 'Virtual Network Bicep module'
 
-import { VirtualNetworkSubnet, Lock, VirtualNetworkPeering,nameBuilder } from '../utilities.bicep'
+metadata description = 'This module deploys a virtual network with optional subnets, peerings, and diagnostic settings. It also creates a gateway subnet and provisions a VPN gateway resource if the parameter gatewaySubnetAddressPrefix is provided. The VPN gateway is configured with a VPN client address pool and supports Entra ID authentication for VPN clients. The VPN gateway is configured with a private IP address and only supports OpenVPN protocol for VPN clients.'
+
+import { VirtualNetworkSubnet, Lock, VirtualNetworkPeering, nameBuilder } from '../utilities.bicep'
 
 @description('Address space of the VNET resource.')
 param cidr string
@@ -56,8 +58,31 @@ param subnets VirtualNetworkSubnet[] = []
 @description('Optional. Tags to be applied to the resource.')
 param tags object?
 
+@description('Optional. Address Prefix (CIDR) for the Gateway Subnet. If this is provide, this module will create a Gateway Subnet with this address prefix and also provisons a vnet gateway resource.')
+param gatewaySubnetAddressPrefix string?
 
-var remoteVirtualNetworkId string[] = [ for (each, i) in peerings ?? []: resourceId(each.?remoteVnetSubscriptionId ?? subscription().subscriptionId, each.?remoteVnetRGName ?? resourceGroup().name, 'Microsoft.Network/virtualNetworks', each.?remoteVnetName)]
+@description('Optional. The IP address range from which VPN clients will receive an IP address when connected. Range specified must not overlap with on-premise network. This parameter is ignored if vnet gateway is not being created. Defaults to `172.16.100.0/24`.')
+param vpnClientAddressPoolPrefix string?
+
+var defaultSubnets VirtualNetworkSubnet[] = !empty(gatewaySubnetAddressPrefix ?? '')
+  ? [
+      {
+        name: 'GatewaySubnet'
+        addressPrefix: gatewaySubnetAddressPrefix!
+        defaultOutboundAccess: true
+      }
+    ]
+  : []
+
+resource remote_vnet 'Microsoft.Network/virtualNetworks@2025-05-01' existing = [
+  for (each, i) in peerings! ?? []: if (!empty(each.?remoteVnetName)) {
+    name: each.?remoteVnetName ?? 'foobar'
+    scope: resourceGroup(
+      each.?remoteVnetSubscriptionId ?? subscription().subscriptionId,
+      each.?remoteVnetRGName ?? resourceGroup().name
+    )
+  }
+]
 
 // get DDOS protection resource
 resource ddosPlan 'Microsoft.Network/ddosProtectionPlans@2023-09-01' existing = if (enableDdosProtectionPlan && !empty(ddosProtectionPlan)) {
@@ -75,6 +100,38 @@ resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = if
   scope: resourceGroup(logAnalyticsWorkspaceRGName)
 }
 */
+
+module vpn_gw 'br/public:avm/res/network/virtual-network-gateway:0.11.1' = if (!empty(gatewaySubnetAddressPrefix ?? '')) {
+  name: 'DeployVnetGateway_vgw-${vnet.name}'
+  params: {
+    name: 'vgw-${vnet.name}'
+    location: location ?? resourceGroup().location
+    clusterSettings: {
+      clusterMode: 'activePassiveNoBgp'
+    }
+    gatewayType: 'Vpn'
+    virtualNetworkResourceId: vnet.id
+    vpnType: 'RouteBased'
+    skuName: 'VpnGw1AZ'
+    enablePrivateIpAddress: true
+    allowVirtualWanTraffic: true
+    allowRemoteVnetTraffic: true
+    vpnClientAadConfiguration: {
+      aadAudience: 'c632b3df-fb67-4d84-bdcf-b95ad541b5c8' //Default audience for Azure VPN Client when using Microsoft registered application for VPN P2S configuration.
+      aadIssuer: 'https://sts.windows.net/${tenant().tenantId}/'
+      aadTenant: '${environment().authentication.loginEndpoint}${tenant().tenantId}/'
+      vpnAuthenticationTypes: [
+        'AAD'
+      ]
+      vpnClientProtocols: [
+        'OpenVPN'
+      ]
+    }
+    vpnGatewayGeneration: 'Generation2'
+    vpnClientAddressPoolPrefix: vpnClientAddressPoolPrefix ?? '172.16.100.0/24'
+    primaryPublicIPName: 'pip-vgw-${vnet.name}'
+  }
+}
 
 //@onlyIfNotExists()
 // create vnet
@@ -101,7 +158,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2025-05-01' = {
       : null
     enableDdosProtection: enableDdosProtectionPlan
     subnets: [
-      for (each, i) in subnets ?? []: {
+      for (each, i) in union(defaultSubnets, subnets) ?? []: {
         name: each.?name
         properties: {
           addressPrefix: each.?addressPrefix
@@ -125,25 +182,46 @@ resource vnet 'Microsoft.Network/virtualNetworks@2025-05-01' = {
         }
       }
     ]
-    virtualNetworkPeerings: [ for (each, i) in peerings! ?? []: {
-      name: each.name
-      properties: {
-        allowForwardedTraffic: each.?allowForwardedTraffic ?? false
-        allowGatewayTransit: each.?allowGatewayTransit ?? false
-        allowVirtualNetworkAccess: each.?allowVirtualNetworkAccess ?? true
-        doNotVerifyRemoteGateways: each.?doNotVerifyRemoteGateways
-        localSubnetNames: each.?localSubnetNames
-        peerCompleteVnets:  each.?peerCompleteVnets ?? true
-        remoteSubnetNames: each.?remoteSubnetNames
-        remoteVirtualNetwork: {
-          id: remoteVirtualNetworkId[i]
+    virtualNetworkPeerings: [
+      for (each, i) in peerings! ?? []: {
+        name: each.?name
+        properties: {
+          allowForwardedTraffic: each.?allowForwardedTraffic ?? false
+          allowGatewayTransit: each.?allowGatewayTransit ?? false
+          allowVirtualNetworkAccess: each.?allowVirtualNetworkAccess ?? true
+          doNotVerifyRemoteGateways: each.?doNotVerifyRemoteGateways ?? false
+          peerCompleteVnets: each.?peerCompleteVnets ?? true
+          remoteVirtualNetwork: {
+            id: remote_vnet[i].?id
+          }
+          useRemoteGateways: each.?useRemoteGateways
         }
-        useRemoteGateways: each.?useRemoteGateways
       }
-    }
     ]
   }
 }
+
+// create vnet peerings
+@description('Create peerings for the VNET resource if mentioned.')
+resource peering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2025-05-01' = [
+  for (each, i) in peerings! ?? []: {
+    name: each.?name
+    parent: vnet
+    properties: {
+      allowForwardedTraffic: each.?allowForwardedTraffic ?? false
+      allowGatewayTransit: each.?allowGatewayTransit ?? false
+      allowVirtualNetworkAccess: each.?allowVirtualNetworkAccess ?? true
+      doNotVerifyRemoteGateways: each.?doNotVerifyRemoteGateways ?? true
+      peerCompleteVnets: true
+      remoteVirtualNetwork: {
+        id: remote_vnet[i].id
+      }
+      useRemoteGateways: each.?useRemoteGateways
+      localSubnetNames: each.?localSubnetNames
+      remoteSubnetNames: each.?remoteSubnetNames
+    }
+  }
+]
 
 // config diagnostic settings
 resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [

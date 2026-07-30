@@ -23,7 +23,9 @@ type Connections = {
   properties: resourceInput<'Microsoft.CognitiveServices/accounts/connections@2025-12-01'>.properties
 }[]
 
+// outputs
+@description('Names of the connections created through this module.')
+output name string[] = [ for (each, i) in connections: foundry_connection[i].name ]
 
-//InstrumentationKey=c9520400-3297-4f09-83bd-94ce82cde6b0;IngestionEndpoint=https://canadacentral-1.in.applicationinsights.azure.com/;LiveEndpoint=https://canadacentral.livediagnostics.monitor.azure.com/;ApplicationId=fb49bf0b-fb47-4923-bd2d-0739615ea1e2
-
-//InstrumentationKey=c9520400-3297-4f09-83bd-94ce82cde6b0;IngestionEndpoint=https://canadacentral-1.in.applicationinsights.azure.com/;LiveEndpoint=https://canadacentral.livediagnostics.monitor.azure.com/;ApplicationId=fb49bf0b-fb47-4923-bd2d-0739615ea1e2
+@description('Resource IDs of the connections created through this module.')
+output id string[] = [ for (each, i) in connections: foundry_connection[i].id ]

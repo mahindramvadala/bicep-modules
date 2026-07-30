@@ -552,13 +552,13 @@ type VirtualNetworkPeering = {
   allowGatewayTransit: false | true?
   allowVirtualNetworkAccess: false | true?
   doNotVerifyRemoteGateways: false | true?
-  peerCompleteVnets: false | true
+  peerCompleteVnets: false | true?
   localSubnetNames: string[]?
   remoteSubnetNames: string[]?
   remoteVnetName: string
   remoteVnetRGName: string?
-  remoteVnetSubscriptionId: resourceInput<'Microsoft.Subscription/aliases@2025-11-01-preview'>.properties.subscriptionId?
-  useRemoteGateways: false | true
+  remoteVnetSubscriptionId: string?
+  useRemoteGateways: false | true?
 }
 
 // ========================================     //
@@ -682,7 +682,7 @@ type ResourceType =
   | 'userAssignedManagedIdentity'
   | 'vpnGateway'
   | 'wafPolicy'
-  | 'storageAccont'
+  | 'storageAccount'
   | 'virtualDesktopHostPool'
   | 'virtualDesktopApplicationGroup'
   | 'virtualDesktopWorksapce'
@@ -809,7 +809,6 @@ var resourceNamePrefixMap object = {
   virtualDesktopApplicationGroup: 'vdag'
   virtualDesktopWorksapce: 'vdws'
   virtualDesktopScalingPlan: 'vdscaling'
-
 }
 
 @export()
@@ -826,11 +825,9 @@ func nameBuilder(resourceType ResourceType, suffix string) string =>
     )
     ? fail('Resource name suffix should not start or end with the resource name prefix to avoid confusion. Please choose a different suffix.')
     : resourceType == 'storageAccount'
-        ? contains(suffix, 'st') || contains(suffix, 'sa')
-            ? fail('Storage account name does not adhere to the accepted standards. Name Suffix must not contain `sa` or `st`.')
-            : length(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', '')) > 24
-                ? fail('Storage account name exceeds 24 characters after removing hyphens if any. Choose a shorter suffix.')
-                : toLower(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', ''))
+        ? length(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', '')) > 24
+            ? fail('Storage account name exceeds 24 characters after removing hyphens if any. Choose a shorter suffix.')
+            : toLower(replace('${resourceNamePrefixMap[resourceType]}${suffix}', '-', ''))
         : resourceType == 'keyVault'
             ? (contains(toLower(suffix), 'kv') || contains(toLower(suffix), 'akv'))
                 ? fail('Key Vault name does not adhere to the accepted standards. Name suffix must not contain `kv` or `akv`.')
@@ -870,6 +867,8 @@ type PrivateDNSZone =
   | 'privatelink.vaultcore.azure.net'
   | 'privatelink.redis.cache.windows.net'
   | 'privatelink.search.windows.net'
+  | 'privatelink.api.azureml.ms'
+  | 'privatelink.notebooks.azure.net'
 
 // ============================================ //
 //                Managed Identity Type        //
@@ -895,5 +894,54 @@ type SystemAndUserAssignedIdentity = {
   type: 'SystemAssigned,UserAssigned'
   userAssignedIdentities: {
     *: string
+  }
+}
+
+/////////////////////////////////////////
+///     AML Compute data type         ///
+/////////////////////////////////////////
+
+@export()
+@discriminator('computeType')
+type amlComputeType = amlComputeInstanceType | amlComputeClusterType
+
+type amlComputeInstanceType = {
+  computeType: 'ComputeInstance'
+  computeLocation: string?
+  disableLocalAuth: false | true?
+  properties: {
+    applicationSharingPolicy: 'Shared'?
+    computeInstanceAuthorizationType: 'personal'?
+    enableNodePublicIp: false | true?
+    vmSize: string
+    enableSSO: true | true?
+    assignedUserObjectId: string
+    subnetId: string?
+    idleTimeBeforeShutdown: string?
+  }
+}
+
+type amlComputeClusterType = {
+  computeType: 'AmlCompute'
+  computeLocation: string?
+  disableLocalAuth: false | true?
+  remoteLoginPortPublicAccess: 'Enabled' | 'Disabled'?
+  properties: {
+    isolatedNetwork: false | true?
+    enableNodePublicIp: false | true?
+    osType: 'Linux' | 'Windows'
+    scaleSettings: {
+      maxNodeCount: int
+      minNodeCount: int
+      nodeIdleTimeBeforeScaleDown: string
+    }?
+    vmSize: string
+    vmPriority: 'Dedicated' | 'LowPriority'?
+    userAccountCredentials: {
+      adminUserName: string
+      adminUserPassword: string?
+      adminUserSshPublicKey: string?
+    }
+    subnetId: string?
   }
 }

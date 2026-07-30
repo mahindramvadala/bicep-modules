@@ -72,9 +72,6 @@ param migrationToken string?
 @description('Name suffix of the Microsoft Foundry resource.')
 param nameSuffix string
 
-@description('Optional. ')
-param networkInjections resourceInput<'Microsoft.CognitiveServices/accounts@2026-01-15-preview'>.properties.networkInjections?
-
 @description('Optional. Should be used only if a private endpoint needs to be created for the Foundry resource.')
 param privateEndpoint PrivateEndpoint?
 
@@ -112,6 +109,21 @@ param userOwnedStorageAccounts resourceInput<'Microsoft.CognitiveServices/accoun
 
 @description('Optional. List of Virtual networks that can access the resource using Service endpoints over Microsoft backbone network.')
 param virtualNetworkRules VirtualNetworkRules?
+
+@description('Optional. Managed vnet configuration. This is only needed for setting up isolation mode of your choice with outbound rules. Defaults to "Allow Internet Outbound" isolation without the firewall.')
+param managedVirtualNetwork {
+  isolationMode: 'AllowInternetOutbound' | 'AllowOnlyApprovedOutbound'
+  firewallSku: 'Basic' | 'Standard'?
+  status: 'Active' | 'Inactive'?
+  outboundRules: ManagedVirtualNetworkOutboundRules?
+}?
+
+@description('Optional. Resource Id of the subnet used by virtual network injection.')
+param subnetResourceId resourceInput<'Microsoft.Network/virtualNetworks/subnets@2025-05-01'>.id?
+
+var managedVnetOutboundRules = !empty(managedVirtualNetwork ?? {}) && !empty(managedVirtualNetwork.?outboundRules ?? [])
+  ? toObject(managedVirtualNetwork.?outboundRules!, each => each.?name)
+  : {}
 
 var resourceName string = nameBuilder(resourceType[kind], nameSuffix)
 
@@ -153,7 +165,7 @@ var defaultConnections Connections = !empty(credentialStorage ?? '') && !empty(a
         name: '${resourceName}-keyvault'
         properties: {
           category: 'AzureKeyVault'
-          authType: 'AccountManagedIdentity'
+          authType: 'AAD' //'AccountManagedIdentity'
           target: credential_kv.?id
           isSharedToAll: true
           metadata: {
@@ -233,7 +245,7 @@ resource vnet_snet 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' existi
 ]
 
 @description('Create Microsoft Foundry resource.')
-resource aif 'Microsoft.CognitiveServices/accounts@2025-12-01' = {
+resource aif 'Microsoft.CognitiveServices/accounts@2026-03-01' = {
   name: resourceName
   location: location ?? resourceGroup().location
   kind: kind
@@ -244,14 +256,12 @@ resource aif 'Microsoft.CognitiveServices/accounts@2025-12-01' = {
     name: sku
   }
   properties: {
-    allowProjectManagement: kind == 'AIServices'
-      ? true
-      : null
+    allowProjectManagement: kind == 'AIServices' ? true : null
     customSubDomainName: resourceName
     disableLocalAuth: disableLocalAuth
     networkAcls: {
       bypass: kind == 'AIServices' && (!empty(ipRules) || !empty(virtualNetworkRules)) ? 'AzureServices' : null
-      defaultAction: !empty(ipRules) || !empty(virtualNetworkRules) ? 'Deny' : 'Allow'
+      defaultAction: 'Deny'
       ipRules: [
         for each in ipRules ?? []: {
           value: each
@@ -264,14 +274,59 @@ resource aif 'Microsoft.CognitiveServices/accounts@2025-12-01' = {
       ]
     }
     dynamicThrottlingEnabled: false
-    publicNetworkAccess: !empty(privateEndpoint) && (empty(ipRules) && empty(virtualNetworkRules))
-      ? 'Disabled'
-      : 'Enabled'
+    publicNetworkAccess: !empty(subnetResourceId ?? '') ? 'Disabled' : 'Enabled'
     restore: restore
-    networkInjections: networkInjections
+    networkInjections: !empty(subnetResourceId ?? '')
+      ? [
+          {
+            scenario: 'agent'
+            subnetArmId: subnetResourceId
+            useMicrosoftManagedNetwork: false
+          }
+        ]
+      : (location == 'canadaeast' || resourceGroup().location == 'canadaeast') && empty(subnetResourceId ?? '')
+          ? [
+              {
+                scenario: 'agent'
+                useMicrosoftManagedNetwork: true
+              }
+            ]
+          : null
     migrationToken: migrationToken
-    restrictOutboundNetworkAccess: restrictOutboundNetworkAccess
+    //restrictOutboundNetworkAccess: restrictOutboundNetworkAccess
     userOwnedStorage: userOwnedStorageAccounts
+    defaultProject: 'default'
+  }
+  /*
+  resource cap_host 'capabilityHosts' = if (!empty(subnetResourceId ?? '')) {
+    name: 'accountCapHost'
+    properties: {
+      capabilityHostKind: 'Agents'
+      //customerSubnet: subnetResourceId
+    }
+  }
+  */
+}
+
+@description('Create Managed VNET for the foundry if specified, and the account is being deployed in Canada East region.')
+resource foundry_managed_vnet 'Microsoft.CognitiveServices/accounts/managedNetworks@2026-03-01' = if ((location == 'canadaeast' || resourceGroup().location == 'canadaeast') && empty(subnetResourceId)) {
+  name: 'default'
+  parent: aif
+  properties: {
+    managedNetwork: empty(managedVirtualNetwork)
+      ? {
+          isolationMode: 'AllowInternetOutbound'
+          managedNetworkKind: 'V2'
+        }
+      : {
+          isolationMode: managedVirtualNetwork.?isolationMode
+          managedNetworkKind: 'V2'
+          firewallSku: managedVirtualNetwork.?firewallSku ?? 'Basic'
+          status: {
+            status: managedVirtualNetwork.?status ?? 'Active'
+          }
+          outboundRules: managedVnetOutboundRules
+        }
   }
 }
 
@@ -288,6 +343,7 @@ module foundry_identity_kvrbac '../KeyVaultRBAC/module.bicep' = if (!empty(crede
   }
 }
 
+@description('Conenctions to be created.')
 module foundry_connections 'connections.bicep' = if (!empty(connections ?? []) || (!empty(credentialStorage ?? {}) || !empty(applicationLogging ?? {}))) {
   dependsOn: [
     foundry_identity_kvrbac
@@ -298,11 +354,81 @@ module foundry_connections 'connections.bicep' = if (!empty(connections ?? []) |
   }
 }
 
+// outputs
+@description('Name of the Foundry account created by the module.')
+output name string = aif.name
+
+@description('Resource ID of the created Foundry resource;')
+output id string = aif.id
+
+@description('Principal Id of the Foundry account\'s system assigned managed identity.')
+output systemAssignedIdentityPrincipalId string = aif.identity.principalId
+
+///////////////////////////////
+//  User-defined data types  //
+///////////////////////////////
 type Connections = {
   name: string
   properties: resourceInput<'Microsoft.CognitiveServices/accounts/connections@2025-12-01'>.properties
 }[]
 
-output name string = aif.name
+type projectType = {
+  name: string
+  identity: Identity?
+  description: string?
+}
 
-output id string = aif.id
+///////////////////////////////////////////////////////////////////////
+//          Foundry Managed Virtual Network Outbound rule type       //
+///////////////////////////////////////////////////////////////////////
+
+@description('Foundry Managed Network Outbound rules data type')
+type ManagedVirtualNetworkOutboundRules = managedVirtualNetworkOutboundRule[]
+
+@discriminator('type')
+type managedVirtualNetworkOutboundRule =
+  | managedVirtualNetworkPrivateEndpointOutboundRule
+  | managedVirtualNetworkFqdnOutboundRule
+  | managedVirtualNetworkServiceTagOutboundRule
+
+type managedVirtualNetworkPrivateEndpointOutboundRule = {
+  @description('Name of the Private Endpoint rule.')
+  name: string
+  @description('Type of a managed network Outbound Rule of a cognitive services account.')
+  type: 'PrivateEndpoint'
+  category: 'Dependency' | 'Recommended' | 'Required' | 'UserDefined'
+  destination: {
+    serviceResourceId: string
+    subResourceTarget: string
+    fqdns: string[]?
+  }
+}
+
+type managedVirtualNetworkFqdnOutboundRule = {
+  @description('Name of the FQDN rule.')
+  name: string
+  @description('Type of a managed network Outbound Rule of a cognitive services account.')
+  type: 'FQDN'
+  @description('Category of a managed network Outbound Rule of a cognitive services account.')
+  category: 'Dependency' | 'Recommended' | 'Required' | 'UserDefined'
+  destination: string
+}
+
+type managedVirtualNetworkServiceTagOutboundRule = {
+  @description('Name of the Service Tag rule.')
+  name: string
+  type: 'ServiceTag'
+  category: 'Dependency' | 'Recommended' | 'Required' | 'UserDefined'
+  destination: {
+    @description('Name of the service tag to target. For example, AzureActiveDirectory.')
+    serviceTag: string
+    @description('Action for the service tag outbound rule.')
+    action: 'Allow' | 'Deny'
+    @description('Network protocol used by the service tag rule. For example, "TCP".')
+    protocol: string
+    @description('Destination port ranges')
+    portRanges: string
+    @description('Optional address prefixes. If provided, the serviceTag property will be ignored.')
+    addressPrefixes: string[]?
+  }
+}

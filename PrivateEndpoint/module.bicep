@@ -3,7 +3,7 @@ metadata name = 'Private endpoint bicep module'
 
 metadata description = 'This module automates creation of the private endpoint for the supported resource types.'
 
-import {nameBuilder, PrivateDNSZone} from '../utilities.bicep'
+import {nameBuilder} from '../utilities.bicep'
 
 @description('Target sub-resource of the resource type for which the private endpoint will need to be created.')
 param groupId string
