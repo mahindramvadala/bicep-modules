@@ -261,7 +261,7 @@ resource aif 'Microsoft.CognitiveServices/accounts@2026-03-01' = {
     disableLocalAuth: disableLocalAuth
     networkAcls: {
       bypass: kind == 'AIServices' && (!empty(ipRules) || !empty(virtualNetworkRules)) ? 'AzureServices' : null
-      defaultAction: 'Deny'
+      defaultAction: !empty(ipRules ?? []) || !empty(virtualNetworkRules ?? []) ? 'Deny' : 'Allow'
       ipRules: [
         for each in ipRules ?? []: {
           value: each

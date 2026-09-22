@@ -1,0 +1,75 @@
+{
+  "predictedResources": [
+    {
+      "id": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Storage/storageAccounts/stsatvai2', subscription().subscriptionId, resourceGroup().name)]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "stsatvai2",
+      "apiVersion": "2026-04-01",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "minimumTlsVersion": "TLS1_2",
+        "allowCrossTenantReplication": false,
+        "allowedCopyScope": "AAD",
+        "allowSharedKeyAccess": false,
+        "isHnsEnabled": false,
+        "publicNetworkAccess": "Enabled",
+        "networkAcls": {
+          "defaultAction": "Allow",
+          "bypass": "AzureServices",
+          "ipRules": [],
+          "virtualNetworkRules": []
+        },
+        "dnsEndpointType": "Standard",
+        "supportsHttpsTrafficOnly": true,
+        "routingPreference": {
+          "routingChoice": "MicrosoftRouting"
+        },
+        "isSftpEnabled": false
+      }
+    },
+    {
+      "id": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Storage/storageAccounts/stsatvai2', subscription().subscriptionId, resourceGroup().name)]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "stsatvai2",
+      "apiVersion": "2026-04-01",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "minimumTlsVersion": "TLS1_2",
+        "allowCrossTenantReplication": false,
+        "allowedCopyScope": "AAD",
+        "allowSharedKeyAccess": false,
+        "isHnsEnabled": false,
+        "publicNetworkAccess": "Enabled",
+        "networkAcls": {
+          "defaultAction": "Deny",
+          "bypass": "AzureServices",
+          "ipRules": [
+            {
+              "value": "142.126.208.12"
+            }
+          ],
+          "virtualNetworkRules": []
+        },
+        "dnsEndpointType": "Standard",
+        "supportsHttpsTrafficOnly": true,
+        "routingPreference": {
+          "routingChoice": "MicrosoftRouting"
+        },
+        "isSftpEnabled": false
+      }
+    }
+  ],
+  "diagnostics": []
+}

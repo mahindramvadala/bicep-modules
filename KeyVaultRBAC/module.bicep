@@ -46,16 +46,17 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
 // Create RBAC assignment on KV
 resource kv_roleassignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for (each, i) in roleAssignments! ?? []: {
-    name: !empty(each.?principalId ?? '') && !empty(each.?principalName ?? '')
+    name: !empty(each.?principalId) && !empty(each.?principalName)
       ? fail('You can only use either "principalId" and "principalName" property but cannot specify both of them.')
-      : empty(each.?principalId ?? '') && empty(each.?principalName ?? '')
+      : empty(each.?principalId) && empty(each.?principalName!)
           ? fail('You must specify either "principalId" or "principalName" property.')
           : startsWith(toLower(each.roleName), 'key')
               ? guid(keyVaultName, each.roleName, each.?principalId ?? each.?principalName ?? 'foobar')
               : fail('Only Key Vault specific role definitions are allowed.')
+    //name: startsWith(toLower(each.roleName), 'key') ? guid(keyVaultName, each.roleName, each.?principalName ?? each.?principalId ) : fail('Only Key Vault specific role definitions are allowed.')
     scope: kv
     properties: {
-      principalId: each.?principalId ?? entridprincipal[i].?outputs.id
+      principalId: empty(each.?principalId) && !empty(each.?principalName) ? entridprincipal[i].?outputs.id : each.?principalId
       roleDefinitionId: subscriptionResourceId(
         'Microsoft.Authorization/roleDefinitions',
         roleDefinitionGuid[each.roleName]

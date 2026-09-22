@@ -124,7 +124,7 @@ resource kv 'Microsoft.KeyVault/vaults@2025-05-01' = {
 }
 
 // create private endpoint
-module pe '../PrivateEndpoint/module.bicep' = if (privateEndpoint != null) {
+module pe '../PrivateEndpoint/module.bicep' = if(!empty(privateEndpoint)) {
   name: 'DeployPrivateEndpoint_${kv.name}'
   scope: resourceGroup(privateEndpoint.?rgName ?? resourceGroup().name)
   params: {

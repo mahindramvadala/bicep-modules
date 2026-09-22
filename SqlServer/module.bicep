@@ -9,10 +9,10 @@ param createMode 'Normal' | 'Restore'?
 
 @description('Optional. Name of the Entra ID group to be assigned as the SQL administrator.')
 param entraIdGroupName string?
-
+/*
 @description('Optional. Managed identity to be assigned to the SQL Server. If not provided, no managed identity will be assigned.')
 param identity Identity?
-
+*/
 @description('''
 - Optional. List of Public Ips or CIDR ranges to allow access to the SQL Server. If not provided, no public access will be allowed.
 - For example:
@@ -29,12 +29,21 @@ param location string?
 param privateEndpoint PrivateEndpoint?
 
 @description('Name suffix of the Sql server.')
-param nameSuffix string = 'sat-ai'
+param nameSuffix string
+
+param userAssignedIdentityName string?
+
+param userAssignedIdentityResourceGroupName string?
 
 @description('Optional. List of virtual network rules to allow access to the SQL Server. If not provided, no virtual network access will be allowed. Specificed subnets must have Microsoft.Sql service endpoint enabled.')
 param vnetRules VirtualNetworkRules?
 
 var resourceName = nameBuilder('sqlDatabaseServer', nameSuffix)
+
+resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2025-05-31-preview' existing = if(!empty(userAssignedIdentityName ?? '')) {
+  name: userAssignedIdentityName!
+  scope: resourceGroup(userAssignedIdentityResourceGroupName ?? resourceGroup().name)
+}
 
 @description('Retrieve virtual network subnet resources.')
 resource sqlserver_firewall_snet 'Microsoft.Network/virtualNetworks/subnets@2025-07-01' existing = [
@@ -58,7 +67,14 @@ module entra_group '../EntraIDObject/module.bicep' = if (!empty(entraIdGroupName
 resource sql_server 'Microsoft.Sql/servers@2025-02-01-preview' = {
   name: resourceName
   location: location ?? resourceGroup().location
-  identity: identity
+  identity: !empty(userAssignedIdentityName) ? {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${uami.id}': {}
+    }
+  } : {
+    type: 'SystemAssigned'
+  }
   properties: {
     administrators: {
       administratorType: 'ActiveDirectory'
@@ -115,3 +131,6 @@ module sqlserver_privatendpoint '../PrivateEndpoint/module.bicep' = if (!empty(p
     vnetName: privateEndpoint.?vnetName!
   }
 }
+
+@description('Principal ID of the managed identity assigned to the SQL Server. If no managed identity is assigned, this will be null.')
+output principalId string = !empty(userAssignedIdentityName ?? '') ? uami.?properties.?principalId ?? 'ppppssss-rrrr-uuuu-llll-eeeeeeeeeeee' : sql_server.?identity.?principalId ?? 'ppppssss-rrrr-uuuu-llll-eeeeeeeeeeee'
